@@ -7,10 +7,15 @@
 // направления (тогда выставляется state.pending и цепочка ставится на паузу).
 
 import { inBounds, isIsland, isSea, seaSideTeams, SIZE } from "./board.js";
-import { DIRS8, mazeLevelsOf } from "./tiles.js";
+import { DIRS8, mazeLevelsOf, nameOf } from "./tiles.js";
 import { ownerOfTeam, piratesAt } from "./state.js";
 
 const MAX_CHAIN = 32; // страховка от стрелок, зацикленных друг на друга
+
+// Лёд повторяет прошлый ход дважды. Второй шаг случается только если первая
+// клетка ничего с пиратом не сделала: крокодил, стрелка, капкан, лабиринт или
+// вода перехватывают управление и скольжение обрывается.
+const ICE_PASSES_THROUGH = new Set(["empty", "money", "fort", "fortNative"]);
 
 function sign(x) {
   return x > 0 ? 1 : x < 0 ? -1 : 0;
@@ -126,7 +131,7 @@ function enter(state, pirate, to, dir, events) {
 
   if (!target.open) {
     target.open = true;
-    events.push(`Открыта клетка: ${target.type}`);
+    events.push(`Открыта клетка: ${nameOf(target.type)}`);
   }
 
   // Уровень лабиринта проставляем до боя: от него зависит, кого пришедший
@@ -210,21 +215,15 @@ function effectOf(state, pirate, events) {
     }
 
     case "ice": {
-      // Лёд повторяет прошлый ход удвоенным: пирата проносит на две клетки
-      // в том же направлении. Пришёл телепортом — направления нет, стоит.
+      // Лёд повторяет прошлый ход дважды: пират делает шаг, открывает клетку,
+      // и если она его не задержала — делает второй такой же шаг.
+      // Пришёл телепортом — направления нет, стоит на месте.
       if (!pirate.lastDir) return null;
-      const [dr, dc] = pirate.lastDir;
-      const far = [r + 2 * dr, c + 2 * dc];
-      const near = [r + dr, c + dc];
+      const to = [r + pirate.lastDir[0], c + pirate.lastDir[1]];
+      if (!canEnter(state, pirate, to, pirate.coin, true)) return null;
 
-      let to = null;
-      if (canEnter(state, pirate, far, pirate.coin, true)) to = far;
-      else if (canEnter(state, pirate, near, pirate.coin, true)) to = near;
-      if (!to) return null;
-
-      events.push(
-        to === far ? "Лёд проносит пирата на двойной ход" : "Лёд протащил пирата до края",
-      );
+      pirate.iceSteps = 1; // должок: ещё один такой же шаг
+      events.push("Лёд повторяет ход пирата дважды");
       return { to, dir: pirate.lastDir };
     }
 
@@ -350,7 +349,7 @@ function effectOf(state, pirate, events) {
       // Уровень уже проставлен в enter — до боя, потому что он решает,
       // кого пришедший может выбить. Здесь только пишем в лог.
       events.push(
-        `Пират ${pirate.id} вошёл в лабиринт (${target.type}), уровень 1 из ${pirate.mazeOf}`,
+        `Пират ${pirate.id} вошёл в лабиринт: ${nameOf(target.type)}, уровень 1 из ${pirate.mazeOf}`,
       );
       return null;
     }
@@ -383,11 +382,27 @@ export function moveAndResolve(state, pirate, to, events) {
     if (pirate.dead || pirate.place !== "land") break;
 
     const next = effectOf(state, pirate, events);
-    if (next === "pending" || next === null) break;
-    target = next.to;
-    dir = next.dir;
+    if (next === "pending") break;
+    if (next) {
+      target = next.to;
+      dir = next.dir;
+      continue;
+    }
+
+    // Клетка пирата не двинула. Если за ним висит второй шаг по льду и клетка
+    // ничего с ним не сделала — доезжает.
+    const here = state.board[pirate.at[0]][pirate.at[1]];
+    if (pirate.iceSteps > 0 && pirate.place === "land" && ICE_PASSES_THROUGH.has(here.type)) {
+      pirate.iceSteps -= 1;
+      const slide = [pirate.at[0] + dir[0], pirate.at[1] + dir[1]];
+      if (!canEnter(state, pirate, slide, pirate.coin, true)) break;
+      target = slide;
+      continue;
+    }
+    break;
   }
 
+  pirate.iceSteps = 0;
   delete pirate.justFreedMate;
 }
 

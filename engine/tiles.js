@@ -21,6 +21,33 @@ export const STATIONARY = new Set(["empty", "money", "fort", "fortNative", "cann
 // каждый ход продвигается на следующий и выйти может только с последнего.
 export const MAZE_LEVELS = { jungle: 2, desert: 3, swamp: 4, mountain: 5 };
 
+// Человеческие названия клеток — для судового журнала.
+export const TYPE_NAMES = {
+  sea: "море",
+  empty: "пусто",
+  arrow: "стрелки",
+  money: "клад",
+  jungle: "джунгли",
+  desert: "пустыня",
+  swamp: "болото",
+  mountain: "гора",
+  ice: "лёд",
+  croc: "крокодил",
+  rum: "бочка рома",
+  trap: "капкан",
+  knight: "конь",
+  cannon: "пушка",
+  fort: "крепость",
+  fortNative: "крепость с туземкой",
+  balloon: "воздушный шар",
+  cannibal: "людоед",
+  plane: "самолёт",
+};
+
+export function nameOf(type) {
+  return TYPE_NAMES[type] ?? type;
+}
+
 export function mazeLevelsOf(cell) {
   if (!cell || !MAZE_LEVELS[cell.type]) return 0;
   return cell.steps ?? MAZE_LEVELS[cell.type];

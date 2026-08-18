@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyAction } from "../engine/rules.js";
+import { applyAction, legalActions } from "../engine/rules.js";
 import { blankGame, setCell, putPirate, pirate } from "./helpers.js";
 
 // Пират стоит на [1,6]; интересная клетка ставится на [2,6] прямо под ним.
@@ -47,10 +47,38 @@ test("соперник не может отвечать на чужой выбо
   assert.equal(applyAction(r.state, "B", { type: "choose", to: [3, 6] }).ok, false);
 });
 
-test("лёд повторяет прошлый ход удвоенным — две клетки в том же направлении", () => {
-  const { g, p } = scene([[[2, 6], { type: "ice" }]]);
+test("лёд повторяет прошлый ход дважды и открывает обе клетки", () => {
+  const g = blankGame();
+  setCell(g, [2, 6], { type: "ice" });
+  setCell(g, [3, 6], { type: "empty" });
+  setCell(g, [4, 6], { type: "empty" });
+  const p = putPirate(g, 0, [1, 6]);
+
   const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
   assert.deepEqual(pirate(r.state, p.id).at, [4, 6]);
+  assert.equal(r.state.board[3][6].open, true, "промежуточная клетка должна открыться");
+  assert.equal(r.state.board[4][6].open, true);
+});
+
+test("если промежуточная клетка перехватывает пирата, второго шага нет", () => {
+  const g = blankGame();
+  setCell(g, [2, 6], { type: "ice" });
+  setCell(g, [3, 6], { type: "croc" }); // крокодил отгоняет назад, скольжение обрывается
+  const p = putPirate(g, 0, [1, 6]);
+
+  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
+  assert.deepEqual(pirate(r.state, p.id).at, [2, 6], "крокодил вернул пирата на лёд");
+});
+
+test("лабиринт на пути обрывает скольжение", () => {
+  const g = blankGame();
+  setCell(g, [2, 6], { type: "ice" });
+  setCell(g, [3, 6], { type: "swamp", steps: 4 });
+  const p = putPirate(g, 0, [1, 6]);
+
+  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
+  assert.deepEqual(pirate(r.state, p.id).at, [3, 6]);
+  assert.equal(pirate(r.state, p.id).mazeLevel, 1);
 });
 
 test("лёд удваивает и диагональный ход", () => {
@@ -86,7 +114,9 @@ test("цепочка стрелка → лёд → крокодил разреш
     [[5, 6], { type: "croc" }],
   ]);
   const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
-  assert.deepEqual(pirate(r.state, p.id).at, [3, 6]);
+  // Стрелка на лёд, лёд делает два шага и приводит на крокодила,
+  // крокодил отгоняет на клетку, с которой пират на него пришёл.
+  assert.deepEqual(pirate(r.state, p.id).at, [4, 6]);
   assert.equal(r.state.activeTeam, 1);
 });
 
@@ -108,4 +138,28 @@ test("цепочка открывает все клетки, через кото
   const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
   assert.equal(r.state.board[2][6].open, true);
   assert.equal(r.state.board[3][6].open, true);
+});
+
+test("стоя на стрелке, пират уходит только по её направлениям", () => {
+  // Пират оказался на стрелке «влево-вправо» — например, его вернул крокодил.
+  const g = blankGame();
+  setCell(g, [5, 6], { type: "arrow", dirs: [[0, 1], [0, -1]], open: true });
+  const p = putPirate(g, 0, [5, 6]);
+
+  const dirs = legalActions(g)
+    .filter((a) => a.type === "move" && a.pirate === p.id)
+    .map((a) => String([a.to[0] - 5, a.to[1] - 6]));
+
+  assert.deepEqual([...new Set(dirs)].sort(), ["0,-1", "0,1"]);
+});
+
+test("с обычной клетки по-прежнему доступны все восемь направлений", () => {
+  const g = blankGame();
+  const p = putPirate(g, 0, [5, 6]);
+  const dirs = new Set(
+    legalActions(g)
+      .filter((a) => a.type === "move" && a.pirate === p.id)
+      .map((a) => String([a.to[0] - 5, a.to[1] - 6])),
+  );
+  assert.equal(dirs.size, 8);
 });

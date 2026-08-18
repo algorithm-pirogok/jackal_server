@@ -56,7 +56,7 @@ export function legalActions(state) {
       continue;
     }
 
-    for (const [dr, dc] of DIRS8) {
+    for (const [dr, dc] of exitDirsFor(state, p)) {
       const to = [p.at[0] + dr, p.at[1] + dc];
       if (!inBounds(to[0], to[1])) continue;
       pushMoveVariants(state, p, to, out);
@@ -64,6 +64,16 @@ export function legalActions(state) {
   }
 
   return out;
+}
+
+// Куда пират вообще может шагнуть с той клетки, где стоит. Обычно во все восемь
+// сторон, но со стрелки — только по её направлениям. Стоять на стрелке пират
+// может: например, его вернул туда крокодил, и эффект повторно не сработал.
+function exitDirsFor(state, pirate) {
+  if (pirate.place !== "land") return DIRS8;
+  const here = state.board[pirate.at[0]][pirate.at[1]];
+  if (here.open && here.type === "arrow" && Array.isArray(here.dirs)) return here.dirs;
+  return DIRS8;
 }
 
 // Для каждой соседней клетки возможны до трёх вариантов: пойти как есть,
