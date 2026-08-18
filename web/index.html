@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Шакал — онлайн</title>
+<style>
+:root{
+  --bg:#0f1319;
+  --panel:#1a212e;
+  --panel-2:#222b3c;
+  --line:#33405a;
+  --text:#e8edf5;
+  --muted:#95a3b9;
+
+  --sea:#1f4f80;
+  --closed:#3a332a;
+  --closed-2:#2f2921;
+  --open:#dccaa1;
+  --open-text:#1d2129;
+
+  --target:#4ade80;
+  --target-ship:#38bdf8;
+  --target-choice:#c77dff;
+  --danger:#ef4444;
+  --gold:#ffd54a;
+
+  --t0:#e2453c;
+  --t1:#3b82f6;
+  --t2:#22a06b;
+  --t3:#e8b71a;
+
+  /* Поле обязано влезать в окно целиком. */
+  --board: min(92vw, 82vh);
+  --cell: calc(var(--board) / 13);
+}
+@media (min-width: 1000px){
+  :root{ --board: min(58vw, 86vh); }
+}
+
+*{ box-sizing:border-box; }
+
+html, body{
+  margin:0;
+  padding:0;
+  min-height:100%;
+  background:var(--bg);
+  color:var(--text);
+  font-family: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size:15px;
+}
+
+.hidden{ display:none !important; }
+.muted{ color:var(--muted); }
+.error{ color:var(--danger); }
+
+button{
+  font: inherit;
+  color:var(--text);
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:8px 14px;
+  cursor:pointer;
+}
+button:hover{ background:#2c374c; }
+button:active{ transform:translateY(1px); }
+button.primary{ background:#2f6df6; border-color:#2f6df6; }
+button.primary:hover{ background:#4780ff; }
+button.small{ padding:4px 9px; font-size:13px; border-radius:6px; }
+
+input[type="text"]{
+  font: inherit;
+  color:var(--text);
+  background:#121824;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:9px 12px;
+}
+
+/* ---------- экран входа ---------- */
+
+#join{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+.card{
+  width:min(560px, 100%);
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:24px;
+}
+.card h1{ margin:0 0 6px; font-size:28px; }
+.card p{ margin:8px 0; }
+#join-form{ display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+#room-input{ flex:1 1 200px; text-transform:uppercase; letter-spacing:2px; }
+.invite{
+  margin-top:18px;
+  padding-top:14px;
+  border-top:1px solid var(--line);
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.invite code{
+  flex:1 1 220px;
+  background:#121824;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:7px 10px;
+  overflow-wrap:anywhere;
+  font-size:13px;
+  color:#bcd0ea;
+}
+.rules{ margin-top:16px; font-size:13px; line-height:1.5; }
+
+/* ---------- игровой экран ---------- */
+
+#game{
+  display:flex;
+  gap:16px;
+  align-items:flex-start;
+  justify-content:center;
+  padding:12px;
+  flex-wrap:wrap;
+}
+
+#board{
+  width:var(--board);
+  height:var(--board);
+  display:grid;
+  grid-template-columns:repeat(13, 1fr);
+  grid-template-rows:repeat(13, 1fr);
+  gap:1px;
+  padding:1px;
+  background:var(--line);
+  border-radius:8px;
+  user-select:none;
+}
+
+.cell{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:visible;
+  cursor:default;
+}
+.cell.sea{ background:var(--sea); }
+.cell.closed{
+  background:repeating-linear-gradient(45deg, var(--closed) 0 6px, var(--closed-2) 6px 12px);
+}
+.cell.open{ background:var(--open); color:var(--open-text); }
+
+.glyph{
+  font-size:calc(var(--cell) * 0.56);
+  line-height:1;
+  pointer-events:none;
+}
+.arrows{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  font-weight:700;
+  color:#3b2f18;
+  line-height:1;
+  pointer-events:none;
+}
+.arrows span{ display:block; text-align:center; }
+.arrows.n1{ font-size:calc(var(--cell) * 0.6); }
+.arrows.n1 span{ width:100%; }
+.arrows.n2{ font-size:calc(var(--cell) * 0.42); }
+.arrows.n2 span{ width:50%; }
+.arrows.n3, .arrows.n4{ font-size:calc(var(--cell) * 0.34); }
+.arrows.n3 span, .arrows.n4 span{ width:50%; }
+
+.coins{
+  position:absolute;
+  top:2%;
+  right:3%;
+  z-index:4;
+  font-size:calc(var(--cell) * 0.26);
+  font-weight:700;
+  color:var(--gold);
+  background:rgba(20,24,32,.88);
+  border-radius:5px;
+  padding:0 3px;
+  line-height:1.35;
+  pointer-events:none;
+}
+
+.ship{
+  position:absolute;
+  inset:8%;
+  border-radius:22%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:calc(var(--cell) * 0.5);
+  border:2px solid rgba(0,0,0,.35);
+  cursor:pointer;
+  z-index:1;
+}
+
+.tokens{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:3%;
+  z-index:2;
+  display:flex;
+  flex-wrap:wrap;
+  gap:2px;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+}
+.token{
+  position:relative;
+  width:calc(var(--cell) * 0.36);
+  height:calc(var(--cell) * 0.36);
+  border-radius:50%;
+  border:1px solid rgba(0,0,0,.55);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:calc(var(--cell) * 0.21);
+  font-weight:700;
+  color:#fff;
+  text-shadow:0 1px 1px rgba(0,0,0,.7);
+  pointer-events:auto;
+  cursor:pointer;
+}
+.token.movable{ outline:2px solid rgba(255,255,255,.7); outline-offset:1px; }
+.token.selected{ outline:3px solid #fff; outline-offset:2px; transform:scale(1.15); }
+.token.trapped{ box-shadow:0 0 0 2px var(--danger); }
+.token.spinner{ box-shadow:0 0 0 2px #c77dff; }
+.token.resting{ opacity:.55; }
+.token .coin{
+  position:absolute;
+  top:-12%;
+  right:-12%;
+  width:44%;
+  height:44%;
+  border-radius:50%;
+  background:var(--gold);
+  border:1px solid #6b4f00;
+}
+
+/* подсветка ходов */
+.cell.target{ cursor:pointer; }
+.cell.target::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:3;
+  border:3px solid var(--target);
+  background:rgba(74,222,128,.22);
+  pointer-events:none;
+}
+.cell.target-ship::before{ border-color:var(--target-ship); background:rgba(56,189,248,.22); }
+.cell.target-choice::before{ border-color:var(--target-choice); background:rgba(199,125,255,.28); }
+.cell.pickable{ cursor:pointer; }
+
+/* ---------- панель ---------- */
+
+#panel{
+  width:min(360px, 92vw);
+  max-height:var(--board);
+  overflow-y:auto;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:14px;
+}
+@media (max-width: 999px){
+  #panel{ max-height:none; }
+}
+#panel h2{ margin:0 0 8px; font-size:18px; }
+#panel h3{ margin:16px 0 6px; font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+
+.room-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+.room-code{ font-weight:700; letter-spacing:2px; }
+
+.score{ display:flex; gap:8px; }
+.score .chip{
+  flex:1;
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:8px 10px;
+  text-align:center;
+}
+.score .chip b{ font-size:22px; display:block; }
+.score .chip.you{ border-color:#4ade80; }
+
+.turn{
+  margin-top:12px;
+  padding:10px 12px;
+  border-radius:10px;
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  font-size:17px;
+  font-weight:600;
+}
+.turn.mine{ background:#14472c; border-color:#4ade80; }
+.turn small{ display:block; font-weight:400; font-size:13px; color:var(--muted); margin-top:3px; }
+
+.dot{
+  display:inline-block;
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  vertical-align:-1px;
+  margin-right:4px;
+  border:1px solid rgba(0,0,0,.5);
+}
+
+.pending{
+  margin-top:10px;
+  padding:10px 12px;
+  border-radius:10px;
+  background:#3b1f52;
+  border:1px solid var(--target-choice);
+}
+
+.controls{ margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+
+.statuses{ margin:6px 0 0; padding-left:18px; font-size:13px; color:var(--muted); }
+.statuses li{ margin:2px 0; }
+
+.banner{
+  margin-top:12px;
+  padding:14px;
+  border-radius:10px;
+  text-align:center;
+  font-size:20px;
+  font-weight:700;
+  background:#2b3450;
+  border:1px solid var(--line);
+}
+.banner.win{ background:#14472c; border-color:#4ade80; }
+.banner.lose{ background:#4a1d1d; border-color:var(--danger); }
+
+.conn{ margin-top:10px; font-size:13px; }
+.conn .dot{ width:9px; height:9px; }
+.conn.online{ color:#4ade80; }
+.conn.offline, .conn.reconnecting{ color:#f59e0b; }
+
+.log{
+  list-style:none;
+  margin:0;
+  padding:0;
+  max-height:34vh;
+  overflow-y:auto;
+  background:#121824;
+  border:1px solid var(--line);
+  border-radius:8px;
+}
+.log li{
+  padding:6px 9px;
+  font-size:13px;
+  line-height:1.35;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.log li:first-child{ color:#fff; }
+.log li:last-child{ border-bottom:none; }
+
+.legend{ font-size:12px; color:var(--muted); line-height:1.6; margin-top:10px; }
+
+/* ---------- всплывающее меню действий ---------- */
+
+#menu{
+  position:fixed;
+  z-index:100;
+  background:var(--panel);
+  border:1px solid var(--target);
+  border-radius:10px;
+  padding:6px;
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  box-shadow:0 6px 20px rgba(0,0,0,.55);
+}
+
+#toast{
+  position:fixed;
+  left:50%;
+  bottom:24px;
+  transform:translateX(-50%);
+  z-index:200;
+  background:#4a1d1d;
+  border:1px solid var(--danger);
+  color:#ffe4e4;
+  padding:10px 16px;
+  border-radius:10px;
+  max-width:90vw;
+}
+</style>
+</head>
+<body>
+
+<div id="join">
+  <div class="card">
+    <h1>🏴‍☠️ Шакал</h1>
+    <p class="muted">Настольный «Шакал» на двоих через интернет. Придумайте код комнаты и отправьте сопернику ссылку — кто зайдёт первым, тот играет за A, второй за B.</p>
+
+    <form id="join-form" autocomplete="off">
+      <input id="room-input" type="text" maxlength="16" placeholder="КОД КОМНАТЫ" spellcheck="false">
+      <button class="primary" type="submit">Играть</button>
+    </form>
+    <p id="join-error" class="error hidden"></p>
+
+    <div class="invite">
+      <span class="muted">Ссылка-приглашение:</span>
+      <code id="join-link">введите код комнаты</code>
+      <button id="join-copy" class="small" type="button">Скопировать</button>
+    </div>
+
+    <p class="rules muted">
+      Код: латинские буквы, цифры и дефис, до 16 знаков.
+      Игрок A ходит командами 🔴 север и 🟢 юг, игрок B — 🔵 запад и 🟡 восток.
+      Кликните своего пирата, чтобы увидеть куда он может пойти.
+    </p>
+  </div>
+</div>
+
+<div id="game" class="hidden">
+  <div id="board"></div>
+
+  <aside id="panel">
+    <div class="room-row">
+      <span class="muted">Комната</span>
+      <span id="panel-room" class="room-code">—</span>
+      <button id="panel-copy" class="small" type="button">Копировать ссылку</button>
+      <button id="panel-leave" class="small" type="button">Выйти</button>
+    </div>
+
+    <div id="score" class="score"></div>
+    <div id="turn" class="turn"></div>
+    <div id="whoami" class="muted" style="margin-top:8px;"></div>
+    <div id="pending" class="pending hidden"></div>
+    <div id="controls" class="controls"></div>
+    <div id="banner" class="banner hidden"></div>
+    <div id="conn" class="conn"></div>
+
+    <h3>Состояния пиратов</h3>
+    <ul id="statuses" class="statuses"></ul>
+
+    <h3>События</h3>
+    <ol id="log" class="log"></ol>
+
+    <div class="legend">
+      Зелёная рамка — куда можно пойти, голубая — ход корабля, фиолетовая — выбор по стрелке / коню / самолёту.
+      Жёлтая точка на пирате — несёт монету. Красный ободок — в ловушке, фиолетовый — вертушка.
+    </div>
+  </aside>
+</div>
+
+<div id="menu" class="hidden"></div>
+<div id="toast" class="hidden"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

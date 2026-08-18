@@ -41,7 +41,10 @@ export function createGame(seed) {
         coin: false,
         dead: false,
         trapped: false, // сидит в капкане, ждёт товарища
-        skipTurns: 0, // выпил рома
+        // Ром: номер хода команды, начиная с которого пират снова ходит.
+        // Храним порог, а не счётчик — иначе пропуск съедался бы тем же ходом,
+        // на котором пират выпил.
+        skipUntilTeamTurn: 0,
         spinnerLeft: 0, // сколько ходов ещё стоять в вертушке
         cameFrom: null, // для крокодила
         lastDir: null, // для льда
@@ -54,6 +57,9 @@ export function createGame(seed) {
     phase: "playing",
     winner: null,
     activeTeam: 0,
+    // Сколько ходов уже сделала каждая команда. Нужен рому, чтобы отмерять
+    // пропуск в ходах именно этой команды, а не в общих.
+    teamTurns: [0, 0, 0, 0],
     board: createBoard(seed),
     teams,
     pirates,
