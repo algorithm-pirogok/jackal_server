@@ -27,9 +27,11 @@ function same(a, b) {
 }
 
 // Корабли того же игрока: на любой из них можно взойти и сдать монету.
+// Взойти можно только на корабль своей команды: у игрока их два, но пират
+// приписан к одному и чужую палубу, пусть и союзную, не топчет.
 function ownShipAt(state, pirate, [r, c]) {
-  const owner = ownerOfTeam(pirate.team);
-  return state.teams.find((t) => t.owner === owner && same(t.ship, [r, c])) ?? null;
+  const team = state.teams[pirate.team];
+  return same(team.ship, [r, c]) ? team : null;
 }
 
 export function ownTeamShip(state, pirate) {

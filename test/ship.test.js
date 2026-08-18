@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createGame } from "../engine/state.js";
 import { applyAction, legalActions } from "../engine/rules.js";
-import { blankGame, pirate } from "./helpers.js";
+import { blankGame, pirate, putPirate } from "./helpers.js";
 
 test("корабль ходит на одну клетку вдоль своего берега", () => {
   const g = createGame(7);
@@ -130,4 +130,24 @@ test("чужого пирата из воды корабль не подбира
 
   const r = applyAction(g, "A", { type: "ship", to: [0, 7] });
   assert.equal(pirate(r.state, enemy.id).place, "sea");
+});
+
+test("на союзный корабль своего же игрока пират не заходит", () => {
+  const g = blankGame(7);
+  const p = putPirate(g, 0, [11, 6]);
+  // Юг — вторая команда того же игрока A, его корабль стоит на [12,6].
+  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [12, 6] });
+  assert.equal(r.ok, false, "залезть можно только на корабль своей команды");
+});
+
+test("союзный корабль не подбирает чужого пирата из воды", () => {
+  const g = blankGame(7);
+  const p = g.pirates.find((x) => x.team === 0);
+  p.place = "sea";
+  p.at = [12, 7];
+  g.activeTeam = 2;
+
+  const r = applyAction(g, "A", { type: "ship", to: [12, 7] });
+  assert.equal(r.ok, true);
+  assert.equal(pirate(r.state, p.id).place, "sea");
 });

@@ -92,7 +92,7 @@ function moveShip(state, team, to, events) {
   // Корабль подбирает своих, кто барахтается в воде на этой клетке.
   for (const p of state.pirates) {
     if (p.dead || p.place !== "sea") continue;
-    if (ownerOfTeam(p.team) !== team.owner) continue;
+    if (p.team !== team.id) continue;
     if (p.at[0] !== to[0] || p.at[1] !== to[1]) continue;
     p.place = "ship";
     events.push(`Пират ${p.id} влез на борт из воды`);
