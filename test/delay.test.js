@@ -137,3 +137,35 @@ test("враг не спасает из капкана, а выбивает на
   assert.equal(pirate(after.state, p1.id).place, "ship");
   assert.equal(pirate(after.state, enemy.id).trapped, true);
 });
+
+test("капкан не срабатывает, если на клетке уже стоит свой пират", () => {
+  const g = blankGame();
+  setCell(g, [2, 6], { type: "trap" });
+  const p1 = putPirate(g, 0, [1, 6]);
+  const p2 = putPirate(g, 0, [1, 7]);
+  const p3 = putPirate(g, 0, [1, 5]);
+
+  // p1 попадается, p2 его вызволяет и остаётся на клетке.
+  let s = rotateTo(applyAction(g, "A", { type: "move", pirate: p1.id, to: [2, 6] }).state, 0);
+  s = rotateTo(applyAction(s, "A", { type: "move", pirate: p2.id, to: [2, 6] }).state, 0);
+
+  // Третий приходит на занятую своими клетку — падать уже некуда.
+  const after = applyAction(s, "A", { type: "move", pirate: p3.id, to: [2, 6] });
+  assert.equal(pirate(after.state, p3.id).trapped, false);
+});
+
+test("капкан срабатывает снова, когда своих на клетке не осталось", () => {
+  const g = blankGame();
+  setCell(g, [2, 6], { type: "trap" });
+  const p1 = putPirate(g, 0, [1, 6]);
+  const p2 = putPirate(g, 0, [1, 7]);
+
+  let s = rotateTo(applyAction(g, "A", { type: "move", pirate: p1.id, to: [2, 6] }).state, 0);
+  s = rotateTo(applyAction(s, "A", { type: "move", pirate: p2.id, to: [2, 6] }).state, 0);
+  // Оба ушли с клетки, капкан снова пустой.
+  s = rotateTo(applyAction(s, "A", { type: "move", pirate: p1.id, to: [1, 6] }).state, 0);
+  s = rotateTo(applyAction(s, "A", { type: "move", pirate: p2.id, to: [1, 7] }).state, 0);
+
+  const after = applyAction(s, "A", { type: "move", pirate: p1.id, to: [2, 6] });
+  assert.equal(pirate(after.state, p1.id).trapped, true);
+});

@@ -109,3 +109,25 @@ test("после хода очередь идёт по часовой: N E S W",
   }
   assert.deepEqual(order, [0, 1, 2, 3, 0]);
 });
+
+test("корабль подбирает своего пирата, барахтающегося в воде", () => {
+  const g = blankGame(7);
+  const p = g.pirates.find((x) => x.team === 0);
+  p.place = "sea";
+  p.at = [0, 7];
+
+  const r = applyAction(g, "A", { type: "ship", to: [0, 7] });
+  assert.equal(r.ok, true);
+  assert.equal(pirate(r.state, p.id).place, "ship");
+  assert.deepEqual(pirate(r.state, p.id).at, [0, 7]);
+});
+
+test("чужого пирата из воды корабль не подбирает", () => {
+  const g = blankGame(7);
+  const enemy = g.pirates.find((x) => x.team === 1);
+  enemy.place = "sea";
+  enemy.at = [0, 7];
+
+  const r = applyAction(g, "A", { type: "ship", to: [0, 7] });
+  assert.equal(pirate(r.state, enemy.id).place, "sea");
+});

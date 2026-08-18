@@ -1,7 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyAction } from "../engine/rules.js";
-import { blankGame, setCell, putPirate, pirate } from "./helpers.js";
+import { applyAction, legalActions } from "../engine/rules.js";
+import {
+  blankGame,
+  setCell,
+  putPirate,
+  pirate,
+  rotateTo,
+  endTeamTurn,
+  actionsFor,
+} from "./helpers.js";
 
 function scene(cells) {
   const g = blankGame();
@@ -110,7 +118,7 @@ test("людоед съедает пирата, монета остаётся н
   assert.equal(r.state.board[2][6].coins, 1);
 });
 
-test("туземка воскрешает погибшего пирата команды", () => {
+test("туземка воскрешает погибшего пирата прямо в крепости", () => {
   const g = blankGame();
   setCell(g, [2, 6], { type: "fortNative" });
   const p = putPirate(g, 0, [1, 6]);
@@ -119,7 +127,22 @@ test("туземка воскрешает погибшего пирата ком
 
   const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
   assert.equal(pirate(r.state, fallen.id).dead, false);
-  assert.deepEqual(pirate(r.state, fallen.id).at, r.state.teams[0].ship);
+  assert.deepEqual(pirate(r.state, fallen.id).at, [2, 6], "рождается в крепости, не на корабле");
+  assert.equal(pirate(r.state, fallen.id).place, "land");
+});
+
+test("новорождённый пропускает следующий ход команды", () => {
+  const g = blankGame();
+  setCell(g, [2, 6], { type: "fortNative" });
+  const p = putPirate(g, 0, [1, 6]);
+  const fallen = g.pirates.find((x) => x.team === 0 && x.id !== p.id);
+  fallen.dead = true;
+
+  const born = rotateTo(applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] }).state, 0);
+  assert.equal(actionsFor(legalActions(born), fallen.id).length, 0, "роды занимают ход");
+
+  const later = rotateTo(endTeamTurn(born), 0);
+  assert.ok(actionsFor(legalActions(later), fallen.id).length > 0, "через ход он в строю");
 });
 
 test("мёртвый пират не воскресает сам по себе на пустой клетке", () => {

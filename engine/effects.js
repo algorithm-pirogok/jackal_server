@@ -12,11 +12,6 @@ import { ownerOfTeam, piratesAt } from "./state.js";
 
 const MAX_CHAIN = 32; // страховка от стрелок, зацикленных друг на друга
 
-// Лёд повторяет прошлый ход дважды. Второй шаг случается только если первая
-// клетка ничего с пиратом не сделала: крокодил, стрелка, капкан, лабиринт или
-// вода перехватывают управление и скольжение обрывается.
-const ICE_PASSES_THROUGH = new Set(["empty", "money", "fort", "fortNative"]);
-
 function sign(x) {
   return x > 0 ? 1 : x < 0 ? -1 : 0;
 }
@@ -172,21 +167,25 @@ function knockOutEnemies(state, pirate, to, events) {
   }
 }
 
-// Товарищ пришёл на капкан — вызволяет застрявшего. Сам при этом не попадается:
-// иначе двое менялись бы местами в капкане бесконечно.
+// Есть ли на клетке кто-то из своих (или союзных) пиратов, кроме самого пирата.
+function hasFriendAt(state, pirate, [r, c]) {
+  const owner = ownerOfTeam(pirate.team);
+  return piratesAt(state, r, c).some(
+    (mate) => mate.id !== pirate.id && ownerOfTeam(mate.team) === owner,
+  );
+}
+
+// Товарищ пришёл на капкан — вызволяет застрявшего.
 function freeTrappedFriends(state, pirate, to, events) {
   const owner = ownerOfTeam(pirate.team);
-  let freed = false;
   for (const mate of piratesAt(state, to[0], to[1])) {
     if (mate.id === pirate.id) continue;
     if (ownerOfTeam(mate.team) !== owner) continue;
     if (mate.trapped) {
       mate.trapped = false;
-      freed = true;
       events.push(`Пират ${mate.id} освобождён из капкана`);
     }
   }
-  pirate.justFreedMate = freed;
 }
 
 export function dropCoinOn(state, [r, c], amount) {
@@ -215,15 +214,14 @@ function effectOf(state, pirate, events) {
     }
 
     case "ice": {
-      // Лёд повторяет прошлый ход дважды: пират делает шаг, открывает клетку,
-      // и если она его не задержала — делает второй такой же шаг.
-      // Пришёл телепортом — направления нет, стоит на месте.
+      // «Эта клетка сразу же повторяет предыдущий ход»: пират делает ровно
+      // ещё один такой же шаг, и клетка, куда он приехал, срабатывает как
+      // обычно. Пришёл телепортом — направления нет, стоит на месте.
       if (!pirate.lastDir) return null;
       const to = [r + pirate.lastDir[0], c + pirate.lastDir[1]];
       if (!canEnter(state, pirate, to, pirate.coin, true)) return null;
 
-      pirate.iceSteps = 1; // должок: ещё один такой же шаг
-      events.push("Лёд повторяет ход пирата дважды");
+      events.push("Лёд повторяет предыдущий ход пирата");
       return { to, dir: pirate.lastDir };
     }
 
@@ -231,16 +229,12 @@ function effectOf(state, pirate, events) {
       const back = pirate.cameFrom;
       if (!back) return null;
       events.push("Крокодил отогнал пирата назад");
-      // Возврат не запускает эффект той клетки заново — иначе пара
-      // «крокодил напротив стрелки» зациклилась бы.
-      pirate.at = [...back];
-      pirate.place = isSea(back[0], back[1]) ? "sea" : "land";
-      pirate.lastDir = null;
-      // Если отогнал в лабиринт — пират оказывается там на первом уровне.
-      const backLevels = mazeLevelsOf(state.board[back[0]]?.[back[1]]);
-      pirate.mazeLevel = backLevels > 0 ? 1 : 0;
-      pirate.mazeOf = backLevels;
-      return null;
+      // Возврат — полноценный ход: клетка, куда пирата отогнали, срабатывает
+      // заново («Я прошёл вертушку-лабиринт и встретил крокодила. Попался
+      // заново? Да»), корабль на этой клетке принимает его на борт, а пара
+      // «одиночная стрелка напротив крокодила» даёт цикл — и по правилам
+      // цикл кончается смертью пирата (см. moveAndResolve).
+      return { to: back, dir: unitDir([r, c], back) };
     }
 
     case "knight": {
@@ -318,7 +312,10 @@ function effectOf(state, pirate, events) {
     }
 
     case "trap": {
-      if (!pirate.justFreedMate) {
+      // Попадается только тот, кто пришёл на клетку, где своих ещё не было.
+      // Стоящий здесь товарищ подаёт руку — и вызволяет застрявшего, и новичку
+      // не даёт свалиться.
+      if (!hasFriendAt(state, pirate, [r, c])) {
         pirate.trapped = true;
         events.push(`Пират ${pirate.id} попал в капкан`);
       }
@@ -335,9 +332,18 @@ function effectOf(state, pirate, events) {
       const dead = state.pirates.find((p) => p.dead && p.team === pirate.team);
       if (dead) {
         dead.dead = false;
-        dead.at = [...state.teams[dead.team].ship];
-        dead.place = "ship";
-        events.push(`Туземка воскресила пирата ${dead.id}`);
+        // Рождается прямо здесь, в крепости, а не на корабле. Роды сложные:
+        // следующий ход команды новорождённый пропускает.
+        dead.at = [r, c];
+        dead.place = "land";
+        dead.coin = false;
+        dead.trapped = false;
+        dead.mazeLevel = 0;
+        dead.mazeOf = 0;
+        dead.cameFrom = null;
+        dead.lastDir = null;
+        dead.skipUntilTeamTurn = state.teamTurns[dead.team] + 2;
+        events.push(`Туземка воскресила пирата ${dead.id} — он рождается целый ход`);
       }
       return null;
     }
@@ -369,15 +375,23 @@ function cannonDir(r, c) {
 
 // Полный ход пирата: шаг в клетку и разрешение всей цепочки эффектов.
 export function moveAndResolve(state, pirate, to, events) {
+  const origin = [...pirate.at];
   let target = [...to];
   let dir = unitDir(pirate.at, to);
   let guard = 0;
+  // Клетка вместе с направлением входа: повтор пары означает, что дальше всё
+  // пойдёт по кругу. Правила на этот счёт однозначны: «бесконечный цикл
+  // заканчивается смертью пирата (на корабль он не возвращается)».
+  const seen = new Set();
 
   while (target) {
-    if (++guard > MAX_CHAIN) {
-      events.push("Пират закружился и остановился");
+    const step = `${target[0]},${target[1]}|${dir ?? "-"}`;
+    if (seen.has(step) || ++guard > MAX_CHAIN) {
+      killInCycle(state, pirate, origin, events);
       break;
     }
+    seen.add(step);
+
     enter(state, pirate, target, dir, events);
     if (pirate.dead || pirate.place !== "land") break;
 
@@ -389,21 +403,20 @@ export function moveAndResolve(state, pirate, to, events) {
       continue;
     }
 
-    // Клетка пирата не двинула. Если за ним висит второй шаг по льду и клетка
-    // ничего с ним не сделала — доезжает.
-    const here = state.board[pirate.at[0]][pirate.at[1]];
-    if (pirate.iceSteps > 0 && pirate.place === "land" && ICE_PASSES_THROUGH.has(here.type)) {
-      pirate.iceSteps -= 1;
-      const slide = [pirate.at[0] + dir[0], pirate.at[1] + dir[1]];
-      if (!canEnter(state, pirate, slide, pirate.coin, true)) break;
-      target = slide;
-      continue;
-    }
     break;
   }
+}
 
-  pirate.iceSteps = 0;
-  delete pirate.justFreedMate;
+// Пират закружился между клетками и уже не выберется. Монета остаётся там,
+// откуда он начинал ход, сам он выбывает из игры и на корабль не возвращается.
+function killInCycle(state, pirate, origin, events) {
+  if (pirate.coin) {
+    pirate.coin = false;
+    if (isIsland(origin[0], origin[1])) dropCoinOn(state, origin, 1);
+  }
+  pirate.dead = true;
+  pirate.place = "land";
+  events.push(`Пират ${pirate.id} закружился в бесконечном цикле и сгинул`);
 }
 
 // Продолжение цепочки после того, как игрок ответил на pending.
