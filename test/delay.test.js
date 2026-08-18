@@ -12,31 +12,82 @@ function scene(cells) {
   return { g, p };
 }
 
-test("джунгли держат пирата два хода", () => {
+test("джунгли — это лабиринт на два уровня, вход на первый", () => {
   const { g, p } = scene([[[2, 6], { type: "jungle", steps: 2 }]]);
   const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
-  assert.equal(pirate(r.state, p.id).spinnerLeft, 1);
+  assert.equal(pirate(r.state, p.id).mazeLevel, 1);
+  assert.equal(pirate(r.state, p.id).mazeOf, 2);
 });
 
-test("болото держит пирата четыре хода", () => {
+test("болото — лабиринт на четыре уровня", () => {
   const { g, p } = scene([[[2, 6], { type: "swamp", steps: 4 }]]);
   const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
-  assert.equal(pirate(r.state, p.id).spinnerLeft, 3);
+  assert.equal(pirate(r.state, p.id).mazeLevel, 1);
+  assert.equal(pirate(r.state, p.id).mazeOf, 4);
 });
 
-test("застрявший в вертушке может только пробиваться дальше", () => {
+test("не дойдя до последнего уровня, пират может только пробиваться дальше", () => {
   const { g, p } = scene([[[2, 6], { type: "swamp", steps: 4 }]]);
   const s = rotateTo(applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] }).state, 0);
-  const acts = actionsFor(legalActions(s), p.id);
-  assert.deepEqual(acts, [{ type: "stay", pirate: p.id }]);
+  assert.deepEqual(actionsFor(legalActions(s), p.id), [{ type: "maze", pirate: p.id }]);
 });
 
-test("каждый ход в вертушке уменьшает остаток, потом пират свободен", () => {
+test("каждый ход продвигает на уровень, с последнего пират снова свободен", () => {
   const { g, p } = scene([[[2, 6], { type: "jungle", steps: 2 }]]);
   let s = rotateTo(applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] }).state, 0);
-  s = rotateTo(applyAction(s, "A", { type: "stay", pirate: p.id }).state, 0);
-  assert.equal(pirate(s, p.id).spinnerLeft, 0);
-  assert.ok(actionsFor(legalActions(s), p.id).some((a) => a.type === "move"));
+
+  s = rotateTo(applyAction(s, "A", { type: "maze", pirate: p.id }).state, 0);
+  assert.equal(pirate(s, p.id).mazeLevel, 2, "добрался до последнего уровня");
+  assert.ok(actionsFor(legalActions(s), p.id).some((a) => a.type === "move"), "может выйти");
+});
+
+test("выйдя из лабиринта, пират забывает уровень", () => {
+  const { g, p } = scene([[[2, 6], { type: "jungle", steps: 2 }]]);
+  let s = rotateTo(applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] }).state, 0);
+  s = rotateTo(applyAction(s, "A", { type: "maze", pirate: p.id }).state, 0);
+  s = applyAction(s, "A", { type: "move", pirate: p.id, to: [3, 6] }).state;
+
+  assert.deepEqual(pirate(s, p.id).at, [3, 6]);
+  assert.equal(pirate(s, p.id).mazeLevel, 0);
+  assert.equal(pirate(s, p.id).mazeOf, 0);
+});
+
+test("гора — самый глубокий лабиринт, пять уровней", () => {
+  const { g, p } = scene([[[2, 6], { type: "mountain", steps: 5 }]]);
+  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
+  assert.equal(pirate(r.state, p.id).mazeOf, 5);
+});
+
+test("врага, забравшегося глубже, выбить нельзя", () => {
+  const g = blankGame();
+  setCell(g, [2, 6], { type: "swamp", steps: 4, open: true });
+  const p = putPirate(g, 0, [1, 6]);
+  const enemy = putPirate(g, 1, [2, 6], { mazeLevel: 3, mazeOf: 4 });
+
+  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
+  assert.equal(r.ok, true);
+  assert.deepEqual(pirate(r.state, enemy.id).at, [2, 6], "враг остался в лабиринте");
+  assert.equal(pirate(r.state, enemy.id).mazeLevel, 3);
+  assert.equal(pirate(r.state, p.id).mazeLevel, 1, "пришедший стоит на первом уровне");
+});
+
+test("врага на том же уровне лабиринта выбить можно", () => {
+  const g = blankGame();
+  setCell(g, [2, 6], { type: "swamp", steps: 4, open: true });
+  const p = putPirate(g, 0, [1, 6]);
+  const enemy = putPirate(g, 1, [2, 6], { mazeLevel: 1, mazeOf: 4 });
+
+  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
+  assert.deepEqual(pirate(r.state, enemy.id).at, r.state.teams[1].ship);
+  assert.equal(pirate(r.state, enemy.id).mazeLevel, 0);
+});
+
+test("пустыня монету не отнимает", () => {
+  const g = blankGame();
+  setCell(g, [2, 6], { type: "desert", steps: 3, open: true });
+  const p = putPirate(g, 0, [1, 6], { coin: true });
+  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
+  assert.equal(pirate(r.state, p.id).coin, true);
 });
 
 test("ром выключает пирата ровно на один ход его команды", () => {

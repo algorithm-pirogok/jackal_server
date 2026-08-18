@@ -65,12 +65,40 @@ test("использованный самолёт больше не взлета
   assert.deepEqual(pirate(r.state, p.id).at, [2, 6]);
 });
 
-test("пушка выбрасывает пирата в море", () => {
+test("пушка, стреляющая мимо кораблей, убивает пирата", () => {
   const g = blankGame();
-  setCell(g, [2, 3], { type: "cannon" });
-  const p = putPirate(g, 0, [1, 3]);
-  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 3] });
-  assert.equal(pirate(r.state, p.id).place, "sea");
+  setCell(g, [2, 6], { type: "cannon", dir: [0, 1] }); // на восток, мимо всех кораблей
+  const p = putPirate(g, 0, [1, 6]);
+  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
+  assert.equal(pirate(r.state, p.id).dead, true);
+});
+
+test("пушка, стреляющая в сторону своего корабля, спасает пирата", () => {
+  const g = blankGame();
+  setCell(g, [2, 6], { type: "cannon", dir: [-1, 0] }); // на север, прямо в свой корабль
+  const p = putPirate(g, 0, [1, 6]);
+  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
+  assert.equal(pirate(r.state, p.id).dead, false);
+  assert.equal(pirate(r.state, p.id).place, "ship");
+  assert.deepEqual(pirate(r.state, p.id).at, r.state.teams[0].ship);
+});
+
+test("выстрел в сторону своего корабля доставляет монету", () => {
+  const g = blankGame();
+  setCell(g, [2, 6], { type: "cannon", dir: [-1, 0], open: true });
+  const p = putPirate(g, 0, [1, 6], { coin: true });
+  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
+  assert.equal(r.state.teams[0].delivered, 1);
+});
+
+test("монета тонет вместе с пиратом, улетевшим мимо кораблей", () => {
+  const g = blankGame();
+  setCell(g, [2, 6], { type: "cannon", dir: [0, 1], open: true });
+  const p = putPirate(g, 0, [1, 6], { coin: true });
+  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
+  assert.equal(pirate(r.state, p.id).dead, true);
+  assert.equal(pirate(r.state, p.id).coin, false);
+  assert.equal(r.state.board[2][6].coins ?? 0, 0);
 });
 
 test("людоед съедает пирата, монета остаётся на клетке", () => {

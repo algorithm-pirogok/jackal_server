@@ -61,10 +61,10 @@ export function applyAction(state, player, action) {
       break;
     }
 
-    case "stay": {
+    case "maze": {
       const p = pirateById(next, match.pirate);
-      p.spinnerLeft = Math.max(0, p.spinnerLeft - 1);
-      events.push(`Пират ${p.id} пробивается дальше`);
+      p.mazeLevel = Math.min(p.mazeOf, p.mazeLevel + 1);
+      events.push(`Пират ${p.id} пробился на уровень ${p.mazeLevel} из ${p.mazeOf}`);
       endTurn(next);
       break;
     }

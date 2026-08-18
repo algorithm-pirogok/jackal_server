@@ -52,13 +52,42 @@ test("высадка ставит пирата на берег и открыва
   assert.equal(r.state.board[1][6].open, true);
 });
 
-test("высадиться можно только на клетку рядом с кораблём", () => {
+test("сойти можно только на клетку прямо перед кораблём", () => {
   const g = blankGame(7);
   const p = g.pirates.find((x) => x.team === 0);
-  assert.equal(applyAction(g, "A", { type: "land", pirate: p.id, to: [1, 5] }).ok, true);
-  assert.equal(applyAction(g, "A", { type: "land", pirate: p.id, to: [1, 7] }).ok, true);
-  assert.equal(applyAction(g, "A", { type: "land", pirate: p.id, to: [1, 9] }).ok, false);
-  assert.equal(applyAction(g, "A", { type: "land", pirate: p.id, to: [2, 6] }).ok, false);
+
+  // Корабль севера стоит на [0,6], значит единственный трап — на [1,6].
+  assert.equal(applyAction(g, "A", { type: "land", pirate: p.id, to: [1, 6] }).ok, true);
+  for (const to of [[1, 5], [1, 7], [1, 9], [2, 6]]) {
+    assert.equal(
+      applyAction(g, "A", { type: "land", pirate: p.id, to }).ok,
+      false,
+      `высадка на ${to} должна быть запрещена`,
+    );
+  }
+});
+
+test("у каждой команды свой единственный трап, по своему берегу", () => {
+  const expected = { 0: [1, 6], 1: [6, 1], 2: [11, 6], 3: [6, 11] };
+
+  for (const teamId of [0, 1, 2, 3]) {
+    const g = blankGame(7);
+    g.activeTeam = teamId;
+    const landings = legalActions(g).filter((a) => a.type === "land");
+    const cells = [...new Set(landings.map((a) => String(a.to)))];
+    assert.deepEqual(cells, [String(expected[teamId])], `команда ${teamId}`);
+    assert.equal(landings.length, 3, "трап один, но сойти может любой из трёх пиратов");
+  }
+});
+
+test("трап следует за кораблём при его движении", () => {
+  const g = blankGame(7);
+  const moved = applyAction(g, "A", { type: "ship", to: [0, 7] }).state;
+  moved.activeTeam = 0;
+  const cells = [
+    ...new Set(legalActions(moved).filter((a) => a.type === "land").map((a) => String(a.to))),
+  ];
+  assert.deepEqual(cells, [String([1, 7])]);
 });
 
 test("legalActions предлагает только действия активной команды", () => {

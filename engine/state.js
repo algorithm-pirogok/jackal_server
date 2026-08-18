@@ -45,7 +45,9 @@ export function createGame(seed) {
         // Храним порог, а не счётчик — иначе пропуск съедался бы тем же ходом,
         // на котором пират выпил.
         skipUntilTeamTurn: 0,
-        spinnerLeft: 0, // сколько ходов ещё стоять в вертушке
+        // Лабиринт: 0 — снаружи, иначе текущий уровень 1..mazeOf.
+        mazeLevel: 0,
+        mazeOf: 0,
         cameFrom: null, // для крокодила
         lastDir: null, // для льда
       });

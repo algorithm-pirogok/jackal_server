@@ -2,7 +2,7 @@
 // Единственный источник правды о том, что можно сделать: и сервер валидирует
 // через него, и клиент рисует подсветку из него же.
 
-import { SHORES, isIsland, inBounds } from "./board.js";
+import { SHORES, isIsland, inBounds, landingCellFor } from "./board.js";
 import { DIRS8, STATIONARY } from "./tiles.js";
 import { canEnter } from "./effects.js";
 
@@ -39,18 +39,19 @@ export function legalActions(state) {
     if (p.team !== team.id || p.dead) continue;
     if (blockedByRum(state, p)) continue;
 
-    if (p.spinnerLeft > 0) {
-      out.push({ type: "stay", pirate: p.id });
+    // В лабиринте пират не свободен: пока не добрался до последнего уровня,
+    // единственное, что он может — продвинуться на следующий.
+    if (p.mazeLevel > 0 && p.mazeLevel < p.mazeOf) {
+      out.push({ type: "maze", pirate: p.id });
       continue;
     }
     if (p.trapped) continue;
 
     if (p.place === "ship") {
-      for (const [dr, dc] of DIRS8) {
-        const to = [team.ship[0] + dr, team.ship[1] + dc];
-        if (isIsland(to[0], to[1]) && canEnter(state, p, to, false)) {
-          out.push({ type: "land", pirate: p.id, to });
-        }
+      // Сойти можно только на клетку прямо перед кораблём.
+      const to = landingCellFor(team.id, team.ship);
+      if (isIsland(to[0], to[1]) && canEnter(state, p, to, false)) {
+        out.push({ type: "land", pirate: p.id, to });
       }
       continue;
     }

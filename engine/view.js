@@ -32,7 +32,8 @@ export function redact(state, owner) {
       coin: p.coin,
       dead: p.dead,
       trapped: p.trapped,
-      spinnerLeft: p.spinnerLeft,
+      mazeLevel: p.mazeLevel,
+      mazeOf: p.mazeOf,
       skipTurns: Math.max(0, (p.skipUntilTeamTurn ?? 0) - state.teamTurns[p.team]),
     })),
     pending: state.pending

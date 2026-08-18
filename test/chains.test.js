@@ -47,10 +47,30 @@ test("соперник не может отвечать на чужой выбо
   assert.equal(applyAction(r.state, "B", { type: "choose", to: [3, 6] }).ok, false);
 });
 
-test("лёд проносит пирата ещё на клетку в том же направлении", () => {
+test("лёд повторяет прошлый ход удвоенным — две клетки в том же направлении", () => {
   const { g, p } = scene([[[2, 6], { type: "ice" }]]);
   const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
-  assert.deepEqual(pirate(r.state, p.id).at, [3, 6]);
+  assert.deepEqual(pirate(r.state, p.id).at, [4, 6]);
+});
+
+test("лёд удваивает и диагональный ход", () => {
+  const g = blankGame();
+  setCell(g, [2, 7], { type: "ice" });
+  const p = putPirate(g, 0, [1, 6]);
+  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 7] });
+  assert.deepEqual(pirate(r.state, p.id).at, [4, 9]);
+});
+
+test("если двойной ход уводит за поле, лёд протаскивает на одну клетку", () => {
+  // С [1,5] на север двойной ход попал бы в [-1,5] — за пределы доски,
+  // поэтому пират останавливается на одинарном шаге, в воде своего берега.
+  const g = blankGame();
+  setCell(g, [1, 5], { type: "ice" });
+  const p = putPirate(g, 0, [2, 5]);
+  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [1, 5] });
+  assert.deepEqual(pirate(r.state, p.id).at, [0, 5]);
+  assert.equal(pirate(r.state, p.id).place, "sea");
+  assert.equal(pirate(r.state, p.id).dead, false, "своя вода — не тонет");
 });
 
 test("крокодил возвращает пирата на клетку, откуда пришёл", () => {
@@ -63,7 +83,7 @@ test("цепочка стрелка → лёд → крокодил разреш
   const { g, p } = scene([
     [[2, 6], { type: "arrow", dirs: [[1, 0]] }],
     [[3, 6], { type: "ice" }],
-    [[4, 6], { type: "croc" }],
+    [[5, 6], { type: "croc" }],
   ]);
   const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
   assert.deepEqual(pirate(r.state, p.id).at, [3, 6]);

@@ -71,14 +71,26 @@ test("пират не идёт в бой, не выпустив монету и�
   assert.ok(acts.some((a) => at(a, [2, 6]) && a.dropCoin));
 });
 
-test("выбитый пират теряет капкан и вертушку", () => {
+test("выбитый пират теряет капкан", () => {
   const g = blankGame();
   const p = putPirate(g, 0, [1, 6]);
-  const enemy = putPirate(g, 1, [2, 6], { trapped: true, spinnerLeft: 3 });
+  const enemy = putPirate(g, 1, [2, 6], { trapped: true });
 
   const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
+  assert.equal(pirate(r.state, enemy.id).place, "ship");
   assert.equal(pirate(r.state, enemy.id).trapped, false);
-  assert.equal(pirate(r.state, enemy.id).spinnerLeft, 0);
+});
+
+test("выбитый из лабиринта пират теряет уровень", () => {
+  const g = blankGame();
+  setCell(g, [2, 6], { type: "jungle", steps: 2, open: true });
+  const p = putPirate(g, 0, [1, 6]);
+  const enemy = putPirate(g, 1, [2, 6], { mazeLevel: 1, mazeOf: 2 });
+
+  const r = applyAction(g, "A", { type: "move", pirate: p.id, to: [2, 6] });
+  assert.equal(pirate(r.state, enemy.id).place, "ship");
+  assert.equal(pirate(r.state, enemy.id).mazeLevel, 0);
+  assert.equal(pirate(r.state, enemy.id).mazeOf, 0);
 });
 
 test("пришедший последним выбивает всех врагов на клетке", () => {
