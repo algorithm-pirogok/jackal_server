@@ -6,8 +6,8 @@
 // пока не наступит покой либо пока игра не спросит игрока о выборе
 // направления (тогда выставляется state.pending и цепочка ставится на паузу).
 
-import { inBounds, isIsland, isSea, SIZE } from "./board.js";
-import { DIRS8, SPINNER_STEPS } from "./tiles.js";
+import { inBounds, isIsland, isSea, seaSideTeams, SIZE } from "./board.js";
+import { DIRS8, mazeLevelsOf } from "./tiles.js";
 import { ownerOfTeam, piratesAt } from "./state.js";
 
 const MAX_CHAIN = 32; // страховка от стрелок, зацикленных друг на друга
@@ -36,6 +36,13 @@ export function ownTeamShip(state, pirate) {
   return state.teams[pirate.team].ship;
 }
 
+// Своя ли это вода. Секторы считаются по владельцу, а не по команде: у игрока
+// два берега, и вода обоих для его пиратов родная.
+export function isFriendlyWater(state, pirate, [r, c]) {
+  const owner = ownerOfTeam(pirate.team);
+  return seaSideTeams(r, c).some((teamId) => ownerOfTeam(teamId) === owner);
+}
+
 // Можно ли пирату войти в клетку.
 //   withCoin — считать ли, что он с монетой (при подъёме монеты это уже правда,
 //              хотя монета ещё не в руках).
@@ -46,9 +53,11 @@ export function canEnter(state, pirate, to, withCoin, forced = false) {
   if (!inBounds(to[0], to[1])) return false;
 
   if (isSea(to[0], to[1])) {
-    // На свой корабль взойти можно всегда. В открытое море пират сам не лезет —
-    // он оказывается там только пушкой или стрелкой, и тогда уже плывёт.
+    // На свой корабль взойти можно всегда.
     if (ownShipAt(state, pirate, to)) return true;
+    // В чужой воде пират тонет, поэтому сам он туда не поплывёт: такой ход
+    // просто не предлагается. Забросить его туда силой — можно, и он погибнет.
+    if (!isFriendlyWater(state, pirate, to)) return forced;
     return forced || pirate.place === "sea";
   }
 
@@ -58,8 +67,13 @@ export function canEnter(state, pirate, to, withCoin, forced = false) {
   if (withCoin && !target.open && !forced) return false;
 
   const owner = ownerOfTeam(pirate.team);
+
+  // В лабиринт пират всегда входит на уровень 1, снаружи уровень 0. Драка
+  // возможна только с теми, кто стоит на том же уровне: забравшийся глубже
+  // недосягаем, и в бой с ним вступить нельзя даже случайно.
+  const arriveLevel = mazeLevelsOf(target) > 0 ? 1 : 0;
   const enemies = piratesAt(state, to[0], to[1]).filter(
-    (q) => ownerOfTeam(q.team) !== owner,
+    (q) => ownerOfTeam(q.team) !== owner && (q.mazeLevel ?? 0) === arriveLevel,
   );
 
   if (enemies.length > 0) {
@@ -76,6 +90,9 @@ function enter(state, pirate, to, dir, events) {
   pirate.cameFrom = [...pirate.at];
   pirate.lastDir = dir ? [...dir] : null;
   pirate.at = [...to];
+  // Уходя с клетки, пират покидает и лабиринт: заново войдёт с первого уровня.
+  pirate.mazeLevel = 0;
+  pirate.mazeOf = 0;
 
   const ship = ownShipAt(state, pirate, to);
   if (ship) {
@@ -89,11 +106,18 @@ function enter(state, pirate, to, dir, events) {
   }
 
   if (isSea(to[0], to[1])) {
-    pirate.place = "sea";
     if (pirate.coin) {
       pirate.coin = false;
       events.push("Монета утонула в море");
     }
+    // В чужих водах пирату не выплыть.
+    if (!isFriendlyWater(state, pirate, to)) {
+      pirate.dead = true;
+      pirate.place = "sea";
+      events.push(`Пират ${pirate.id} оказался в чужих водах и утонул`);
+      return;
+    }
+    pirate.place = "sea";
     return;
   }
 
@@ -105,16 +129,29 @@ function enter(state, pirate, to, dir, events) {
     events.push(`Открыта клетка: ${target.type}`);
   }
 
+  // Уровень лабиринта проставляем до боя: от него зависит, кого пришедший
+  // вообще может выбить.
+  const levels = mazeLevelsOf(target);
+  if (levels > 0) {
+    pirate.mazeLevel = 1;
+    pirate.mazeOf = levels;
+  } else {
+    pirate.mazeLevel = 0;
+    pirate.mazeOf = 0;
+  }
+
   knockOutEnemies(state, pirate, to, events);
   freeTrappedFriends(state, pirate, to, events);
 }
 
-// Пришедший выбивает всех врагов на клетке — они уходят на свои корабли,
-// груз остаётся здесь же.
+// Пришедший выбивает врагов на клетке — но только тех, кто стоит на том же
+// уровне лабиринта. Снаружи лабиринта уровень у всех 0, так что на обычной
+// клетке правило работает как всегда: пришёл последним — выбил всех.
 function knockOutEnemies(state, pirate, to, events) {
   const owner = ownerOfTeam(pirate.team);
   for (const enemy of piratesAt(state, to[0], to[1])) {
     if (ownerOfTeam(enemy.team) === owner) continue;
+    if ((enemy.mazeLevel ?? 0) !== (pirate.mazeLevel ?? 0)) continue;
     if (enemy.coin) {
       enemy.coin = false;
       dropCoinOn(state, to, 1);
@@ -122,7 +159,8 @@ function knockOutEnemies(state, pirate, to, events) {
     enemy.at = [...state.teams[enemy.team].ship];
     enemy.place = "ship";
     enemy.trapped = false;
-    enemy.spinnerLeft = 0;
+    enemy.mazeLevel = 0;
+    enemy.mazeOf = 0;
     enemy.cameFrom = null;
     enemy.lastDir = null;
     events.push(`Пират ${enemy.id} выбит на свой корабль`);
@@ -172,10 +210,21 @@ function effectOf(state, pirate, events) {
     }
 
     case "ice": {
+      // Лёд повторяет прошлый ход удвоенным: пирата проносит на две клетки
+      // в том же направлении. Пришёл телепортом — направления нет, стоит.
       if (!pirate.lastDir) return null;
-      const to = [r + pirate.lastDir[0], c + pirate.lastDir[1]];
-      if (!canEnter(state, pirate, to, pirate.coin, true)) return null;
-      events.push("Лёд проносит пирата дальше");
+      const [dr, dc] = pirate.lastDir;
+      const far = [r + 2 * dr, c + 2 * dc];
+      const near = [r + dr, c + dc];
+
+      let to = null;
+      if (canEnter(state, pirate, far, pirate.coin, true)) to = far;
+      else if (canEnter(state, pirate, near, pirate.coin, true)) to = near;
+      if (!to) return null;
+
+      events.push(
+        to === far ? "Лёд проносит пирата на двойной ход" : "Лёд протащил пирата до края",
+      );
       return { to, dir: pirate.lastDir };
     }
 
@@ -188,6 +237,10 @@ function effectOf(state, pirate, events) {
       pirate.at = [...back];
       pirate.place = isSea(back[0], back[1]) ? "sea" : "land";
       pirate.lastDir = null;
+      // Если отогнал в лабиринт — пират оказывается там на первом уровне.
+      const backLevels = mazeLevelsOf(state.board[back[0]]?.[back[1]]);
+      pirate.mazeLevel = backLevels > 0 ? 1 : 0;
+      pirate.mazeOf = backLevels;
       return null;
     }
 
@@ -237,38 +290,20 @@ function effectOf(state, pirate, events) {
     }
 
     case "cannon": {
-      // Ядро летит по направлению, напечатанному на клетке. Пират выживает
-      // только если траектория выводит его на свой корабль; во всех остальных
-      // случаях он улетает в открытое море и гибнет.
+      // Ядро летит по направлению, напечатанному на клетке, и переносит пирата
+      // за остров. Дальше судьбу решает вода, куда он упал: свой корабль —
+      // взошёл на борт, своя вода — плывёт, чужая — тонет.
       const dir = target.dir ?? cannonDir(r, c);
       let rr = r + dir[0];
       let cc = c + dir[1];
-
-      while (inBounds(rr, cc)) {
-        const ship = ownShipAt(state, pirate, [rr, cc]);
-        if (ship) {
-          events.push(`Пушка забросила пирата ${pirate.id} прямо на свой корабль`);
-          pirate.at = [rr, cc];
-          pirate.place = "ship";
-          pirate.lastDir = null;
-          if (pirate.coin) {
-            pirate.coin = false;
-            ship.delivered += 1;
-            events.push(`Команда ${ship.shore} доставила монету выстрелом`);
-          }
-          return null;
-        }
+      while (isIsland(rr, cc)) {
         rr += dir[0];
         cc += dir[1];
       }
+      if (!inBounds(rr, cc)) return null;
 
-      events.push(`Пушка выстрелила пиратом ${pirate.id} мимо кораблей — он утонул`);
-      if (pirate.coin) {
-        pirate.coin = false;
-        events.push("Монета утонула вместе с ним");
-      }
-      pirate.dead = true;
-      pirate.lastDir = null;
+      events.push(`Пушка выстрелила пиратом ${pirate.id}`);
+      enter(state, pirate, [rr, cc], dir, events);
       return null;
     }
 
@@ -312,9 +347,11 @@ function effectOf(state, pirate, events) {
     case "desert":
     case "swamp":
     case "mountain": {
-      const steps = target.steps ?? SPINNER_STEPS[target.type];
-      pirate.spinnerLeft = steps - 1;
-      events.push(`Пират застрял: ${target.type}, ещё ${pirate.spinnerLeft} ход(ов)`);
+      // Уровень уже проставлен в enter — до боя, потому что он решает,
+      // кого пришедший может выбить. Здесь только пишем в лог.
+      events.push(
+        `Пират ${pirate.id} вошёл в лабиринт (${target.type}), уровень 1 из ${pirate.mazeOf}`,
+      );
       return null;
     }
 
