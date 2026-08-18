@@ -2,43 +2,53 @@
 // действия ровно в том виде, в каком они пришли в view.legal.
 
 const SIZE = 13;
+const SVGNS = "http://www.w3.org/2000/svg";
+const GOAL = 19;
 
-const TEAM_COLORS = ["#e2453c", "#3b82f6", "#22a06b", "#e8b71a"];
-const TEAM_NAMES = ["север", "запад", "юг", "восток"];
+// Команды: цвет + собственная форма токена + буква. Форма и буква нужны, чтобы
+// красную и зелёную команду можно было различить и без цветового зрения.
+const TEAMS = [
+  { name: "север", letter: "С", color: "#cf3b30", shape: "circle" },
+  { name: "восток", letter: "В", color: "#3b7fe0", shape: "square" },
+  { name: "юг", letter: "Ю", color: "#23945f", shape: "diamond" },
+  { name: "запад", letter: "З", color: "#e3b02a", shape: "hex" },
+];
 
-const TYPE_GLYPH = {
-  empty: "",
-  money: "💰",
-  jungle: "🌴",
-  desert: "🏜️",
-  swamp: "🐸",
-  mountain: "⛰️",
-  ice: "🧊",
-  croc: "🐊",
-  rum: "🍺",
-  trap: "🪤",
-  knight: "🐴",
-  cannon: "💣",
-  fort: "🏰",
-  fortNative: "👸",
-  balloon: "🎈",
-  cannibal: "👹",
-  plane: "✈️",
+const TEAM_NAMES = TEAMS.map((t) => t.name);
+
+// type клетки -> id символа в спрайте index.html. sea/empty рисуются фоном.
+const TYPE_ICON = {
+  money: "i-money",
+  jungle: "i-jungle",
+  desert: "i-desert",
+  swamp: "i-swamp",
+  mountain: "i-mountain",
+  ice: "i-ice",
+  croc: "i-croc",
+  rum: "i-rum",
+  trap: "i-trap",
+  knight: "i-knight",
+  cannon: "i-cannon",
+  fort: "i-fort",
+  fortNative: "i-fortNative",
+  balloon: "i-balloon",
+  cannibal: "i-cannibal",
+  plane: "i-plane",
 };
 
 const TYPE_NAME = {
   sea: "море",
   empty: "пусто",
   arrow: "стрелки",
-  money: "монеты",
+  money: "клад",
   jungle: "джунгли",
   desert: "пустыня",
   swamp: "болото",
   mountain: "гора",
   ice: "лёд",
   croc: "крокодил",
-  rum: "ром",
-  trap: "ловушка",
+  rum: "бочка рома",
+  trap: "капкан",
   knight: "конь",
   cannon: "пушка",
   fort: "форт",
@@ -48,15 +58,39 @@ const TYPE_NAME = {
   plane: "самолёт",
 };
 
-const ARROW_GLYPH = {
-  "-1,0": "↑",
-  "1,0": "↓",
-  "0,1": "→",
-  "0,-1": "←",
-  "-1,-1": "↖",
-  "-1,1": "↗",
-  "1,1": "↘",
-  "1,-1": "↙",
+const MAZE_TYPES = new Set(["jungle", "desert", "swamp", "mountain"]);
+
+// Углы поворота: строки растут вниз, поэтому положительный поворот — по часовой.
+// Луч стрелки в спрайте смотрит вверх, ствол пушки — вправо.
+const ANGLE_UP = {
+  "-1,0": 0,
+  "-1,1": 45,
+  "0,1": 90,
+  "1,1": 135,
+  "1,0": 180,
+  "1,-1": 225,
+  "0,-1": 270,
+  "-1,-1": 315,
+};
+const ANGLE_RIGHT = {
+  "0,1": 0,
+  "1,1": 45,
+  "1,0": 90,
+  "1,-1": 135,
+  "0,-1": 180,
+  "-1,-1": 225,
+  "-1,0": 270,
+  "-1,1": 315,
+};
+const DIR_NAME = {
+  "-1,0": "вверх",
+  "-1,1": "вверх-вправо",
+  "0,1": "вправо",
+  "1,1": "вниз-вправо",
+  "1,0": "вниз",
+  "1,-1": "вниз-влево",
+  "0,-1": "влево",
+  "-1,-1": "вверх-влево",
 };
 
 const PENDING_TEXT = {
@@ -93,6 +127,32 @@ function byId(id) {
 
 function cellKey(r, c) {
   return r + "," + c;
+}
+
+function dirKey(dir) {
+  return dir[0] + "," + dir[1];
+}
+
+function svgNode(tag, attrs) {
+  const node = document.createElementNS(SVGNS, tag);
+  if (attrs) {
+    for (const key of Object.keys(attrs)) {
+      if (attrs[key] !== undefined && attrs[key] !== null) node.setAttribute(key, attrs[key]);
+    }
+  }
+  return node;
+}
+
+function useNode(symbolId, attrs) {
+  const node = svgNode("use", attrs);
+  node.setAttribute("href", "#" + symbolId);
+  return node;
+}
+
+function iconSvg(symbolId, className, viewBox) {
+  const root = svgNode("svg", { class: className, viewBox: viewBox || "0 0 24 24" });
+  root.appendChild(useNode(symbolId));
+  return root;
 }
 
 function makeSessionId() {
@@ -160,10 +220,7 @@ function copyTextFallback(text) {
 
 function showToast(text, isError) {
   el.toast.textContent = text;
-  el.toast.style.background = isError === false ? "#14472c" : "#4a1d1d";
-  el.toast.style.borderColor = isError === false ? "#4ade80" : "#ef4444";
-  el.toast.style.color = "#fff";
-  el.toast.classList.remove("hidden");
+  el.toast.className = isError === false ? "ok" : "";
   clearTimeout(app.toastTimer);
   app.toastTimer = setTimeout(() => el.toast.classList.add("hidden"), 4500);
 }
@@ -332,8 +389,21 @@ function shipActions() {
   return legalActions().filter((a) => a.type === "ship");
 }
 
-function stayActionFor(pirateId) {
-  return legalActions().find((a) => a.type === "stay" && a.pirate === pirateId) || null;
+// «Пробиваться дальше» внутри лабиринта — заменяет прежний stay.
+function mazeActionFor(pirateId) {
+  return legalActions().find((a) => a.type === "maze" && a.pirate === pirateId) || null;
+}
+
+function mazeActions() {
+  return legalActions().filter((a) => a.type === "maze");
+}
+
+function mazeLabel(pirate) {
+  if (!pirate) return null;
+  const level = Number(pirate.mazeLevel) || 0;
+  const of = Number(pirate.mazeOf) || 0;
+  if (level <= 0 || of <= 0) return null;
+  return level + "/" + of;
 }
 
 // Клетки, подсвеченные для текущего выбора: ключ клетки -> список действий.
@@ -368,9 +438,9 @@ function targetsForSelection() {
 }
 
 function targetClass() {
-  if (app.view && app.view.pending) return "target-choice";
-  if (app.selection && app.selection.kind === "ship") return "target-ship";
-  return "";
+  if (app.view && app.view.pending) return "hl-pick";
+  if (app.selection && app.selection.kind === "ship") return "hl-ship";
+  return "hl-move";
 }
 
 // --- клики ---
@@ -454,12 +524,13 @@ function selectShipAt(r, c) {
 // --- меню выбора варианта хода (взять / оставить монету) ---
 
 function actionLabel(action) {
-  if (action.type === "choose") return "сюда";
-  if (action.type === "ship") return "плыть сюда";
-  if (action.takeCoin) return "взять 💰";
-  if (action.dropCoin) return "оставить 💰";
-  if (action.type === "land") return "высадиться";
-  return "идти";
+  if (action.type === "choose") return "Сюда";
+  if (action.type === "ship") return "Плыть сюда";
+  if (action.type === "maze") return "Пробиваться дальше";
+  if (action.takeCoin) return "Взять монету";
+  if (action.dropCoin) return "Оставить монету";
+  if (action.type === "land") return "Высадиться";
+  return "Идти";
 }
 
 function openMenu(r, c, actions) {
@@ -510,6 +581,7 @@ function renderMenu() {
 
 function renderBoard() {
   el.board.textContent = "";
+  for (const node of el.boardDecor) el.board.appendChild(node);
   if (!app.view) return;
 
   const targets = targetsForSelection();
@@ -518,6 +590,7 @@ function renderBoard() {
   const ships = shipsByCell();
   const labels = buildPirateLabels();
   const movable = movablePirateIds();
+  const frag = document.createDocumentFragment();
 
   for (let r = 0; r < SIZE; r++) {
     for (let c = 0; c < SIZE; c++) {
@@ -537,8 +610,7 @@ function renderBoard() {
       }
 
       if (targets.has(cellKey(r, c))) {
-        node.classList.add("target");
-        if (extraTargetClass) node.classList.add(extraTargetClass);
+        node.classList.add(extraTargetClass);
       } else if (here && here.some((p) => movable.has(p.id))) {
         node.classList.add("pickable");
       }
@@ -547,76 +619,148 @@ function renderBoard() {
         app.lastHandledEvent = event;
         handleClick(r, c, null);
       });
-      el.board.appendChild(node);
+      frag.appendChild(node);
     }
   }
+
+  el.board.appendChild(frag);
+}
+
+function cellTitle(cell) {
+  if (!cell || !cell.open) return "Закрытая клетка — откроется, когда на неё ступит пират";
+
+  let text = TYPE_NAME[cell.type] || cell.type;
+
+  if (cell.type === "arrow" && Array.isArray(cell.dirs) && cell.dirs.length > 0) {
+    const names = cell.dirs.map((d) => DIR_NAME[dirKey(d)] || "?").join(", ");
+    text += ": " + names;
+  }
+  if (cell.type === "cannon" && Array.isArray(cell.dir)) {
+    text += ": выстрел " + (DIR_NAME[dirKey(cell.dir)] || "?");
+  }
+  if (typeof cell.steps === "number" && cell.steps > 0) {
+    text += ", уровней: " + cell.steps;
+  }
+  if (typeof cell.coins === "number" && cell.coins > 0) {
+    text += ", монет: " + cell.coins;
+  }
+  return text;
 }
 
 function fillCell(node, cell) {
   if (!cell || !cell.open) {
     node.classList.add("closed");
-    node.title = "Закрытая клетка";
+    node.title = cellTitle(cell);
     return;
   }
 
   if (cell.type === "sea") {
     node.classList.add("sea");
+    node.title = TYPE_NAME.sea;
     return;
   }
 
-  node.classList.add("open");
-  node.title = TYPE_NAME[cell.type] || cell.type;
+  node.classList.add("open", "t-" + cell.type);
+  node.title = cellTitle(cell);
 
-  if (cell.type === "arrow" && Array.isArray(cell.dirs)) {
-    node.appendChild(makeArrows(cell.dirs));
-  } else {
-    const glyph = TYPE_GLYPH[cell.type];
-    if (glyph) {
-      const span = document.createElement("div");
-      span.className = "glyph";
-      span.textContent = glyph;
-      node.appendChild(span);
-    }
+  if (cell.type === "arrow") {
+    node.appendChild(makeArrows(Array.isArray(cell.dirs) ? cell.dirs : []));
+  } else if (cell.type === "cannon") {
+    node.appendChild(makeCannon(cell.dir));
+  } else if (TYPE_ICON[cell.type]) {
+    node.appendChild(iconSvg(TYPE_ICON[cell.type], "ic"));
   }
 
-  if (typeof cell.steps === "number" && cell.steps > 0) {
-    node.title += ", шагов: " + cell.steps;
+  if (typeof cell.steps === "number" && cell.steps > 0 && MAZE_TYPES.has(cell.type)) {
+    const steps = document.createElement("div");
+    steps.className = "chip-steps";
+    steps.textContent = String(cell.steps);
+    node.appendChild(steps);
   }
 
+  // Монеты бывают на любой открытой клетке — счётчик рисуем всегда.
   if (typeof cell.coins === "number" && cell.coins > 0) {
     const coins = document.createElement("div");
-    coins.className = "coins";
-    coins.textContent = cell.type === "money" ? "×" + cell.coins : "💰" + cell.coins;
+    coins.className = "chip-coins";
+    coins.textContent = String(cell.coins);
     node.appendChild(coins);
-    node.title += ", монет: " + cell.coins;
   }
 }
 
 function makeArrows(dirs) {
-  const box = document.createElement("div");
-  const count = Math.min(dirs.length, 4);
-  box.className = "arrows n" + count;
+  const root = svgNode("svg", { class: "ic", viewBox: "0 0 24 24" });
   for (const dir of dirs) {
-    const span = document.createElement("span");
-    span.textContent = ARROW_GLYPH[dir[0] + "," + dir[1]] || "•";
-    box.appendChild(span);
+    const angle = ANGLE_UP[dirKey(dir)];
+    if (angle === undefined) continue;
+    root.appendChild(useNode("i-arrow", { transform: "rotate(" + angle + " 12 12)" }));
   }
-  return box;
+  if (!root.firstChild) root.appendChild(useNode("i-arrow"));
+  return root;
+}
+
+function makeCannon(dir) {
+  const root = svgNode("svg", { class: "ic", viewBox: "0 0 24 24" });
+  const angle = Array.isArray(dir) ? ANGLE_RIGHT[dirKey(dir)] : undefined;
+  root.appendChild(
+    useNode("i-cannon", angle === undefined ? null : { transform: "rotate(" + angle + " 12 12)" }),
+  );
+  return root;
 }
 
 function makeShip(team, r, c) {
+  const meta = TEAMS[team.id] || { name: String(team.id), letter: "?", color: "#888" };
+
   const node = document.createElement("div");
   node.className = "ship";
-  node.style.background = TEAM_COLORS[team.id] || "#888";
-  node.textContent = "⛵";
+
+  const root = svgNode("svg", { viewBox: "0 0 32 32" });
+  root.style.color = meta.color;
+  root.appendChild(useNode("i-ship"));
+
+  const letter = svgNode("text", { x: "20.6", y: "16.4", class: "ship-letter" });
+  letter.textContent = meta.letter;
+  root.appendChild(letter);
+  node.appendChild(root);
+
+  if (team.delivered > 0) {
+    const chip = document.createElement("span");
+    chip.className = "deliv";
+    chip.textContent = String(team.delivered);
+    node.appendChild(chip);
+  }
+
   node.title =
-    "Корабль команды " + (TEAM_NAMES[team.id] || team.id) +
-    " (игрок " + team.owner + "), доставлено монет: " + team.delivered;
+    "Корабль команды " + meta.name + " (игрок " + team.owner + "), доставлено монет: " +
+    (team.delivered || 0);
+
   node.addEventListener("click", (event) => {
     event.stopPropagation();
+    app.lastHandledEvent = event;
     handleClick(r, c, { kind: "ship" });
   });
   return node;
+}
+
+// Форма токена — второй, нецветовой признак команды.
+function teamShapeNode(teamId) {
+  const shape = (TEAMS[teamId] || {}).shape;
+  if (shape === "square") {
+    return svgNode("rect", { class: "tok-shape", x: 4.5, y: 4.5, width: 23, height: 23, rx: 3 });
+  }
+  if (shape === "diamond") {
+    return svgNode("path", { class: "tok-shape", d: "M16 3 29 16 16 29 3 16Z" });
+  }
+  if (shape === "hex") {
+    return svgNode("path", { class: "tok-shape", d: "M16 3.4 27 9.7v12.6L16 28.6 5 22.3V9.7Z" });
+  }
+  return svgNode("circle", { class: "tok-shape", cx: 16, cy: 16, r: 12 });
+}
+
+// Маленький значок команды для панели: та же форма и тот же цвет, что на поле.
+function teamMark(teamId) {
+  const root = svgNode("svg", { class: "mark team-" + teamId, viewBox: "0 0 32 32" });
+  root.appendChild(teamShapeNode(teamId));
+  return root;
 }
 
 function makeTokens(list, labels, movable, r, c) {
@@ -624,45 +768,70 @@ function makeTokens(list, labels, movable, r, c) {
   box.className = "tokens";
 
   for (const pirate of list) {
-    const token = document.createElement("div");
-    token.className = "token";
-    token.style.background = TEAM_COLORS[pirate.team] || "#888";
-    token.textContent = String(labels.get(pirate.id) || "?");
+    const wrap = document.createElement("div");
+    wrap.className = "tok team-" + pirate.team;
 
-    if (movable.has(pirate.id)) token.classList.add("movable");
-    if (app.selection && app.selection.kind === "pirate" && app.selection.id === pirate.id) {
-      token.classList.add("selected");
-    }
-    if (pirate.trapped) token.classList.add("trapped");
-    if (pirate.spinnerLeft > 0) token.classList.add("spinner");
-    if (pirate.skipTurns > 0) token.classList.add("resting");
+    const root = svgNode("svg", { viewBox: "0 0 32 32" });
+    root.appendChild(teamShapeNode(pirate.team));
 
-    token.title = pirateTitle(pirate, labels);
+    const num = svgNode("text", { x: 16, y: 21, class: "tok-num" });
+    num.textContent = String(labels.get(pirate.id) || "?");
+    root.appendChild(num);
 
     if (pirate.coin) {
-      const coin = document.createElement("div");
-      coin.className = "coin";
-      token.appendChild(coin);
+      root.appendChild(svgNode("circle", { class: "tok-coin", cx: 25.5, cy: 6.5, r: 5.6 }));
+      root.appendChild(svgNode("circle", { class: "tok-coin-in", cx: 25.5, cy: 6.5, r: 2.6 }));
+    }
+    if (pirate.trapped) {
+      root.appendChild(svgNode("circle", { class: "pip pip-trap", cx: 6, cy: 26, r: 4.6 }));
+    }
+    if (pirate.skipTurns > 0) {
+      root.appendChild(svgNode("circle", { class: "pip pip-rest", cx: 26, cy: 26, r: 4.6 }));
     }
 
-    token.addEventListener("click", (event) => {
+    wrap.appendChild(root);
+
+    // Уровень лабиринта обязан быть виден: без него нельзя понять, кого можно выбить.
+    const level = mazeLabel(pirate);
+    if (level) {
+      const chip = document.createElement("span");
+      chip.className = "lvl";
+      chip.textContent = level;
+      wrap.appendChild(chip);
+    }
+
+    if (movable.has(pirate.id)) wrap.classList.add("movable");
+    if (app.selection && app.selection.kind === "pirate" && app.selection.id === pirate.id) {
+      wrap.classList.add("selected");
+    }
+    if (pirate.trapped) wrap.classList.add("trapped");
+    if (pirate.skipTurns > 0) wrap.classList.add("resting");
+
+    wrap.title = pirateTitle(pirate, labels);
+
+    wrap.addEventListener("click", (event) => {
       event.stopPropagation();
+      app.lastHandledEvent = event;
       handleClick(r, c, { kind: "pirate", id: pirate.id });
     });
 
-    box.appendChild(token);
+    box.appendChild(wrap);
   }
 
   return box;
 }
 
+function pirateName(pirate, labels) {
+  return "пират " + (labels.get(pirate.id) || "?") + " · " + (TEAM_NAMES[pirate.team] || pirate.team);
+}
+
 function pirateTitle(pirate, labels) {
-  const parts = [
-    "Пират " + (labels.get(pirate.id) || "?") + ", команда " + (TEAM_NAMES[pirate.team] || pirate.team),
-  ];
+  const parts = [pirateName(pirate, labels)];
+  if (pirate.dead) parts.push("погиб");
   if (pirate.coin) parts.push("несёт монету");
-  if (pirate.trapped) parts.push("в ловушке");
-  if (pirate.spinnerLeft > 0) parts.push("вертушка: " + pirate.spinnerLeft);
+  if (pirate.trapped) parts.push("в капкане");
+  const level = mazeLabel(pirate);
+  if (level) parts.push("лабиринт " + level);
   if (pirate.skipTurns > 0) parts.push("пропускает ходов: " + pirate.skipTurns);
   if (pirate.place === "sea") parts.push("в воде");
   if (pirate.place === "ship") parts.push("на корабле");
@@ -676,6 +845,7 @@ function renderPanel() {
   renderScore();
   renderTurn();
   renderWhoami();
+  renderTeams();
   renderPending();
   renderControls();
   renderBanner();
@@ -690,23 +860,30 @@ function renderScore() {
   const score = app.view && app.view.score ? app.view.score : { A: 0, B: 0 };
 
   for (const side of ["A", "B"]) {
+    const value = Number(score[side]) || 0;
+
     const chip = document.createElement("div");
     chip.className = "chip" + (you === side ? " you" : "");
-    const value = document.createElement("b");
-    value.textContent = String(score[side] ?? 0);
-    const name = document.createElement("span");
-    name.textContent = "Игрок " + side + (you === side ? " (вы)" : "");
-    chip.appendChild(value);
-    chip.appendChild(name);
+
+    const big = document.createElement("b");
+    big.textContent = String(value);
+    chip.appendChild(big);
+
+    const who = document.createElement("div");
+    who.className = "who";
+    who.textContent = "Игрок " + side + (you === side ? " · вы" : "");
+    chip.appendChild(who);
+
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    const fill = document.createElement("i");
+    fill.style.width = Math.max(0, Math.min(100, (value / GOAL) * 100)) + "%";
+    bar.appendChild(fill);
+    chip.appendChild(bar);
+
+    chip.title = "Доставлено монет: " + value + " из " + GOAL;
     el.score.appendChild(chip);
   }
-}
-
-function teamDot(teamId) {
-  const dot = document.createElement("span");
-  dot.className = "dot";
-  dot.style.background = TEAM_COLORS[teamId] || "#888";
-  return dot;
 }
 
 function renderTurn() {
@@ -720,11 +897,12 @@ function renderTurn() {
 
   const team = app.view.teams.find((t) => t.id === app.view.activeTeam);
   const line = document.createElement("div");
-  line.appendChild(teamDot(app.view.activeTeam));
+  line.className = "line";
+  line.appendChild(teamMark(app.view.activeTeam));
   line.appendChild(
     document.createTextNode(
       "Ходит " + (TEAM_NAMES[app.view.activeTeam] || app.view.activeTeam) +
-      (team ? " (игрок " + team.owner + ")" : ""),
+      (team ? " · игрок " + team.owner : ""),
     ),
   );
   el.turn.appendChild(line);
@@ -755,13 +933,51 @@ function renderWhoami() {
     return;
   }
 
-  el.whoami.appendChild(document.createTextNode("Вы: игрок " + app.view.you + " — "));
+  el.whoami.appendChild(document.createTextNode("Вы играете за " + app.view.you + ":"));
   const mine = app.view.teams.filter((t) => t.owner === app.view.you);
-  mine.forEach((team, index) => {
-    if (index > 0) el.whoami.appendChild(document.createTextNode(", "));
-    el.whoami.appendChild(teamDot(team.id));
-    el.whoami.appendChild(document.createTextNode(TEAM_NAMES[team.id] || String(team.id)));
+  mine.forEach((team) => {
+    const span = document.createElement("span");
+    span.style.display = "inline-flex";
+    span.style.alignItems = "center";
+    span.style.gap = "5px";
+    span.appendChild(teamMark(team.id));
+    span.appendChild(document.createTextNode(TEAM_NAMES[team.id] || String(team.id)));
+    el.whoami.appendChild(span);
   });
+}
+
+function renderTeams() {
+  el.teams.textContent = "";
+  if (!app.view || !Array.isArray(app.view.teams)) return;
+
+  for (const team of app.view.teams) {
+    const meta = TEAMS[team.id] || { name: String(team.id), letter: "?" };
+    const row = document.createElement("div");
+    row.className = "row";
+    if (team.id === app.view.activeTeam) row.classList.add("active");
+    if (app.view.you !== "spectator" && team.owner === app.view.you) row.classList.add("mine");
+
+    row.appendChild(teamMark(team.id));
+
+    const name = document.createElement("span");
+    name.className = "nm";
+    name.textContent = meta.name + " «" + meta.letter + "»";
+    row.appendChild(name);
+
+    const own = document.createElement("span");
+    own.className = "own";
+    own.textContent = "игрок " + team.owner;
+    row.appendChild(own);
+
+    const cnt = document.createElement("span");
+    cnt.className = "cnt";
+    cnt.appendChild(iconSvg("i-coin", "ic"));
+    cnt.appendChild(document.createTextNode(String(team.delivered || 0)));
+    cnt.title = "Монет доставлено этим кораблём";
+    row.appendChild(cnt);
+
+    el.teams.appendChild(row);
+  }
 }
 
 function renderPending() {
@@ -780,31 +996,52 @@ function renderControls() {
   el.controls.textContent = "";
   if (!app.view || !app.view.yourTurn) return;
 
+  const labels = buildPirateLabels();
+
   if (app.selection && app.selection.kind === "pirate") {
-    const labels = buildPirateLabels();
     const pirate = pirateById(app.selection.id);
     if (pirate) {
       const info = document.createElement("span");
-      info.className = "muted";
-      info.textContent =
-        "Выбран пират " + (labels.get(pirate.id) || "?") +
-        " (" + (TEAM_NAMES[pirate.team] || pirate.team) + ")";
+      info.className = "sel";
+      info.appendChild(teamMark(pirate.team));
+      info.appendChild(document.createTextNode("Выбран " + pirateName(pirate, labels)));
       el.controls.appendChild(info);
-    }
 
-    const stay = stayActionFor(app.selection.id);
-    if (stay) {
-      const button = document.createElement("button");
-      button.className = "small";
-      button.textContent = "Простоять ход";
-      button.addEventListener("click", () => sendAction(stay));
-      el.controls.appendChild(button);
+      const maze = mazeActionFor(pirate.id);
+      if (maze) {
+        const level = mazeLabel(pirate);
+        const button = document.createElement("button");
+        button.className = "small primary";
+        button.textContent = "Пробиваться дальше" + (level ? " (" + level + ")" : "");
+        button.title = "Пират продвигается на следующий уровень лабиринта";
+        button.addEventListener("click", () => sendAction(maze));
+        el.controls.appendChild(button);
+      } else if (targetsForSelection().size === 0) {
+        const none = document.createElement("span");
+        none.className = "sel";
+        none.textContent = "ходов у этого пирата нет";
+        el.controls.appendChild(none);
+      }
     }
   } else if (app.selection && app.selection.kind === "ship") {
     const info = document.createElement("span");
-    info.className = "muted";
-    info.textContent = "Выбран корабль";
+    info.className = "sel";
+    info.textContent = "Выбран корабль — укажите клетку у берега";
     el.controls.appendChild(info);
+  } else {
+    // Пират в глубине лабиринта не подсвечивает ни одной клетки,
+    // поэтому его единственный ход выносим прямо в панель.
+    for (const action of mazeActions()) {
+      const pirate = pirateById(action.pirate);
+      const level = mazeLabel(pirate);
+      const button = document.createElement("button");
+      button.className = "small";
+      button.textContent =
+        "Пробиваться дальше" + (level ? " " + level : "") +
+        (pirate ? " · " + pirateName(pirate, labels) : "");
+      button.addEventListener("click", () => sendAction(action));
+      el.controls.appendChild(button);
+    }
   }
 
   if (app.selection) {
@@ -822,9 +1059,8 @@ function renderControls() {
 
 function renderBanner() {
   if (!app.view || app.view.phase !== "finished") {
-    el.banner.classList.add("hidden");
-    el.banner.textContent = "";
     el.banner.className = "banner hidden";
+    el.banner.textContent = "";
     return;
   }
 
@@ -832,9 +1068,9 @@ function renderBanner() {
   let text;
   let mood = "";
   if (winner === null || winner === undefined) {
-    text = "🤝 Ничья";
+    text = "Ничья — сокровища поделены поровну";
   } else {
-    text = "🏆 Победил игрок " + winner;
+    text = "Победил игрок " + winner;
     if (app.view.you === winner) mood = " win";
     else if (app.view.you === "A" || app.view.you === "B") mood = " lose";
   }
@@ -850,20 +1086,16 @@ function renderConnection() {
     online: "на связи",
     reconnecting: "переподключаюсь…",
   };
-  const colors = {
-    offline: "#ef4444",
-    connecting: "#f59e0b",
-    online: "#4ade80",
-    reconnecting: "#f59e0b",
-  };
 
   el.conn.className = "conn " + app.connStatus;
   el.conn.textContent = "";
   const dot = document.createElement("span");
   dot.className = "dot";
-  dot.style.background = colors[app.connStatus] || "#888";
+  dot.style.background = "currentColor";
   el.conn.appendChild(dot);
-  el.conn.appendChild(document.createTextNode("Связь: " + (labels[app.connStatus] || app.connStatus)));
+  el.conn.appendChild(
+    document.createTextNode("Связь: " + (labels[app.connStatus] || app.connStatus)),
+  );
 }
 
 function renderStatuses() {
@@ -872,7 +1104,7 @@ function renderStatuses() {
 
   const labels = buildPirateLabels();
   const notable = app.view.pirates.filter(
-    (p) => !p.dead && (p.trapped || p.spinnerLeft > 0 || p.skipTurns > 0 || p.coin),
+    (p) => p.dead || p.trapped || p.coin || p.skipTurns > 0 || mazeLabel(p),
   );
 
   if (notable.length === 0) {
@@ -884,15 +1116,35 @@ function renderStatuses() {
 
   for (const pirate of notable) {
     const item = document.createElement("li");
-    item.appendChild(teamDot(pirate.team));
-    item.appendChild(document.createTextNode(pirateTitle(pirate, labels)));
+    item.appendChild(teamMark(pirate.team));
+
+    const name = document.createElement("b");
+    name.textContent = "№" + (labels.get(pirate.id) || "?") + " " + (TEAM_NAMES[pirate.team] || "");
+    item.appendChild(name);
+
+    const notes = [];
+    if (pirate.dead) notes.push("погиб");
+    if (pirate.coin) notes.push("с монетой");
+    if (pirate.trapped) notes.push("в капкане");
+    const level = mazeLabel(pirate);
+    if (level) notes.push("лабиринт " + level);
+    if (pirate.skipTurns > 0) notes.push("пропуск ходов: " + pirate.skipTurns);
+    if (pirate.place === "sea") notes.push("в воде");
+
+    item.appendChild(document.createTextNode("— " + notes.join(", ")));
     el.statuses.appendChild(item);
   }
 }
 
 function renderLog() {
   el.log.textContent = "";
-  if (!app.view || !Array.isArray(app.view.log)) return;
+  if (!app.view || !Array.isArray(app.view.log) || app.view.log.length === 0) {
+    const item = document.createElement("li");
+    item.className = "empty";
+    item.textContent = "пока ничего не произошло";
+    el.log.appendChild(item);
+    return;
+  }
   for (const line of app.view.log.slice(0, 60)) {
     const item = document.createElement("li");
     item.textContent = line;
@@ -968,6 +1220,10 @@ function bindUi() {
   el.menu = byId("menu");
   el.toast = byId("toast");
 
+  // Декорации поля (лист острова и роза ветров) живут в разметке —
+  // перерисовка клеток не должна их терять.
+  el.boardDecor = Array.from(el.board.children);
+
   el.roomInput = byId("room-input");
   el.joinForm = byId("join-form");
   el.joinError = byId("join-error");
@@ -980,6 +1236,7 @@ function bindUi() {
   el.score = byId("score");
   el.turn = byId("turn");
   el.whoami = byId("whoami");
+  el.teams = byId("teams");
   el.pending = byId("pending");
   el.controls = byId("controls");
   el.banner = byId("banner");
