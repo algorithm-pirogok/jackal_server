@@ -6,36 +6,53 @@
 <title>Шакал — онлайн</title>
 <style>
 :root{
-  --bg:#0f1319;
-  --panel:#1a212e;
-  --panel-2:#222b3c;
-  --line:#33405a;
-  --text:#e8edf5;
-  --muted:#95a3b9;
+  /* --- интерфейс: тёмный стол, на котором лежит карта --- */
+  --bg:        #070c11;
+  --bg-2:      #0b131b;
+  --panel:     #101a23;
+  --panel-2:   #16232e;
+  --line:      #2a3b49;
+  --line-warm: #5c4629;
+  --text:      #ece2cd;
+  --muted:     #93a1ad;
 
-  --sea:#1f4f80;
-  --closed:#3a332a;
-  --closed-2:#2f2921;
-  --open:#dccaa1;
-  --open-text:#1d2129;
+  --gold:      #d9a83f;
+  --gold-hi:   #f2c862;
+  --danger:    #d1483a;
+  --ok:        #4fbe7e;
 
-  --target:#4ade80;
-  --target-ship:#38bdf8;
-  --target-choice:#c77dff;
-  --danger:#ef4444;
-  --gold:#ffd54a;
+  /* --- карта --- */
+  --sea-1:     #16455f;
+  --sea-2:     #0b2a3e;
+  --sea-3:     #061826;
+  --paper-1:   #ded0a9;
+  --paper-2:   #c9b585;
+  --paper-ink: #4a3520;
+  --back-1:    #2b2016;
+  --back-2:    #1a130c;
+  --back-ink:  #6d5533;
 
-  --t0:#e2453c;
-  --t1:#3b82f6;
-  --t2:#22a06b;
-  --t3:#e8b71a;
+  /* --- подсветки: цвет + собственная геометрия --- */
+  --hl-move:   #ffcf5c;
+  --hl-ship:   #5ad2ea;
+  --hl-pick:   #c58cff;
+
+  /* --- команды --- */
+  --t0: #cf3b30;
+  --t1: #3b7fe0;
+  --t2: #23945f;
+  --t3: #e3b02a;
+
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-map: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
 
   /* Поле обязано влезать в окно целиком. */
-  --board: min(92vw, 82vh);
+  --board: min(94vw, 74vh);
   --cell: calc(var(--board) / 13);
+  --pad: calc(var(--board) * 0.014);
 }
-@media (min-width: 1000px){
-  :root{ --board: min(58vw, 86vh); }
+@media (min-width: 1040px){
+  :root{ --board: min(56vw, 86vh); }
 }
 
 *{ box-sizing:border-box; }
@@ -44,41 +61,85 @@ html, body{
   margin:0;
   padding:0;
   min-height:100%;
-  background:var(--bg);
+  background:
+    radial-gradient(ellipse at 50% -10%, #142331 0%, transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg));
+  background-attachment:fixed;
   color:var(--text);
-  font-family: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family:var(--font-ui);
   font-size:15px;
+  line-height:1.4;
 }
 
 .hidden{ display:none !important; }
 .muted{ color:var(--muted); }
-.error{ color:var(--danger); }
+.error{ color:#ff8f83; }
+
+h1,h2,h3{ font-family:var(--font-map); font-weight:600; }
 
 button{
-  font: inherit;
+  font:inherit;
   color:var(--text);
-  background:var(--panel-2);
+  background:linear-gradient(180deg, var(--panel-2), #101a23);
   border:1px solid var(--line);
-  border-radius:8px;
+  border-radius:7px;
   padding:8px 14px;
   cursor:pointer;
+  transition:background .12s, border-color .12s, transform .06s;
 }
-button:hover{ background:#2c374c; }
+button:hover{ background:linear-gradient(180deg, #1d2d3a, #14202b); border-color:#3d5468; }
 button:active{ transform:translateY(1px); }
-button.primary{ background:#2f6df6; border-color:#2f6df6; }
-button.primary:hover{ background:#4780ff; }
+button:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+button.primary{
+  background:linear-gradient(180deg, #d9a83f, #a8781f);
+  border-color:#e6bf68;
+  color:#201604;
+  font-weight:700;
+}
+button.primary:hover{ background:linear-gradient(180deg, #f0c25e, #bd8a26); }
 button.small{ padding:4px 9px; font-size:13px; border-radius:6px; }
 
 input[type="text"]{
-  font: inherit;
+  font:inherit;
   color:var(--text);
-  background:#121824;
+  background:#0a121a;
   border:1px solid var(--line);
-  border-radius:8px;
-  padding:9px 12px;
+  border-radius:7px;
+  padding:10px 13px;
 }
+input[type="text"]:focus{ outline:none; border-color:var(--gold); box-shadow:0 0 0 3px rgba(217,168,63,.15); }
 
-/* ---------- экран входа ---------- */
+/* ================= иконки ================= */
+
+.ic{
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.7;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  display:block;
+}
+.t-arrow      { color:#5c4326; }
+.t-money      { color:#8a5a12; }
+.t-jungle     { color:#3f6b32; }
+.t-desert     { color:#8a6a22; }
+.t-swamp      { color:#3a6152; }
+.t-mountain   { color:#57483a; }
+.t-ice        { color:#2f6a86; }
+.t-croc       { color:#7d3a24; }
+.t-rum        { color:#7a4a1e; }
+.t-trap       { color:#8f2f22; }
+.t-knight     { color:#4c3c58; }
+.t-cannon     { color:#8f2f22; }
+.t-fort       { color:#4a4436; }
+.t-fortNative { color:#7a5030; }
+.t-balloon    { color:#6a4677; }
+.t-cannibal   { color:#8f2f22; }
+.t-plane      { color:#38596f; }
+.t-empty      { color:#5c4326; }
+.t-sea        { color:#7fb6d0; }
+
+/* ================= экран входа ================= */
 
 #join{
   min-height:100vh;
@@ -88,16 +149,50 @@ input[type="text"]{
   padding:20px;
 }
 .card{
-  width:min(560px, 100%);
-  background:var(--panel);
+  position:relative;
+  width:min(600px, 100%);
+  background:
+    radial-gradient(circle at 85% 0%, rgba(217,168,63,.10), transparent 55%),
+    linear-gradient(180deg, #14202b, #0d151d);
   border:1px solid var(--line);
+  border-top:1px solid #3d5468;
   border-radius:14px;
-  padding:24px;
+  padding:30px 28px 26px;
+  box-shadow:0 30px 70px rgba(0,0,0,.6);
+  overflow:hidden;
 }
-.card h1{ margin:0 0 6px; font-size:28px; }
+.card .rose-bg{
+  position:absolute;
+  right:-46px;
+  top:-46px;
+  width:230px;
+  height:230px;
+  color:#d9a83f;
+  opacity:.10;
+  pointer-events:none;
+}
+.card h1{
+  margin:0;
+  font-size:40px;
+  letter-spacing:.16em;
+  color:var(--gold-hi);
+  text-shadow:0 2px 0 rgba(0,0,0,.5);
+}
+.card .sub{
+  margin:2px 0 16px;
+  font-family:var(--font-map);
+  font-style:italic;
+  letter-spacing:.05em;
+  color:var(--muted);
+}
 .card p{ margin:8px 0; }
+.rule{
+  height:1px;
+  background:linear-gradient(90deg, transparent, var(--line-warm), transparent);
+  margin:18px 0;
+}
 #join-form{ display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
-#room-input{ flex:1 1 200px; text-transform:uppercase; letter-spacing:2px; }
+#room-input{ flex:1 1 220px; text-transform:uppercase; letter-spacing:3px; font-family:var(--font-map); font-size:17px; }
 .invite{
   margin-top:18px;
   padding-top:14px;
@@ -109,197 +204,405 @@ input[type="text"]{
 }
 .invite code{
   flex:1 1 220px;
-  background:#121824;
+  background:#0a121a;
   border:1px solid var(--line);
-  border-radius:8px;
-  padding:7px 10px;
+  border-radius:7px;
+  padding:8px 10px;
   overflow-wrap:anywhere;
   font-size:13px;
-  color:#bcd0ea;
+  color:#a9c4d8;
 }
-.rules{ margin-top:16px; font-size:13px; line-height:1.5; }
+.rules{ margin-top:14px; font-size:13px; line-height:1.6; }
+.crew-line{ display:flex; gap:16px; flex-wrap:wrap; margin-top:12px; font-size:13px; }
+.crew-line span{ display:inline-flex; align-items:center; gap:6px; }
 
-/* ---------- игровой экран ---------- */
+/* ================= игровой экран ================= */
 
 #game{
   display:flex;
-  gap:16px;
+  gap:18px;
   align-items:flex-start;
   justify-content:center;
-  padding:12px;
+  padding:14px;
   flex-wrap:wrap;
+}
+@media (min-width: 1040px){
+  #game{ height:100vh; overflow:hidden; flex-wrap:nowrap; align-items:center; }
+}
+
+.board-frame{
+  position:relative;
+  padding:var(--pad);
+  border-radius:12px;
+  background:
+    linear-gradient(180deg, #3a2c1a, #241a10);
+  box-shadow:
+    0 0 0 1px rgba(217,168,63,.28),
+    inset 0 0 0 1px rgba(0,0,0,.6),
+    0 26px 60px rgba(0,0,0,.65);
+  flex:0 0 auto;
 }
 
 #board{
+  position:relative;
   width:var(--board);
   height:var(--board);
   display:grid;
   grid-template-columns:repeat(13, 1fr);
   grid-template-rows:repeat(13, 1fr);
-  gap:1px;
-  padding:1px;
-  background:var(--line);
-  border-radius:8px;
+  border-radius:5px;
+  overflow:hidden;
   user-select:none;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.030) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(90deg, rgba(0,0,0,.10) 0 1px, transparent 1px 26px),
+    radial-gradient(ellipse at 50% 42%, var(--sea-1) 0%, var(--sea-2) 52%, var(--sea-3) 100%);
+}
+
+/* остров — единый лист состаренной бумаги под клетками */
+.island{
+  position:absolute;
+  inset:7.6923%;
+  z-index:0;
+  pointer-events:none;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,.65)) drop-shadow(0 0 2px rgba(0,0,0,.8));
+}
+.island-in{
+  position:absolute;
+  inset:0;
+  clip-path:polygon(
+    9.0909% 0, 90.9091% 0, 90.9091% 9.0909%, 100% 9.0909%,
+    100% 90.9091%, 90.9091% 90.9091%, 90.9091% 100%, 9.0909% 100%,
+    9.0909% 90.9091%, 0 90.9091%, 0 9.0909%, 9.0909% 9.0909%
+  );
+  background:
+    radial-gradient(circle at 26% 20%, rgba(255,247,225,.30), transparent 45%),
+    radial-gradient(circle at 78% 78%, rgba(120,78,26,.26), transparent 55%),
+    radial-gradient(circle at 62% 30%, rgba(146,102,40,.18), transparent 40%),
+    linear-gradient(150deg, var(--paper-1), var(--paper-2));
+}
+
+.rose{
+  position:absolute;
+  left:0.2%;
+  top:0.2%;
+  width:calc(var(--cell) * 1.02);
+  height:calc(var(--cell) * 1.02);
+  color:#a9d6ea;
+  opacity:.34;
+  z-index:0;
+  pointer-events:none;
 }
 
 .cell{
   position:relative;
+  z-index:1;
   display:flex;
   align-items:center;
   justify-content:center;
-  overflow:visible;
   cursor:default;
 }
-.cell.sea{ background:var(--sea); }
+.cell.sea{ background:transparent; }
+.cell.open{
+  color:var(--paper-ink);
+  box-shadow:inset 0 0 0 1px rgba(74,53,32,.16);
+}
+/* «рубашка» закрытой клетки — тёмная кожа с тиснением */
 .cell.closed{
-  background:repeating-linear-gradient(45deg, var(--closed) 0 6px, var(--closed-2) 6px 12px);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(214,172,96,.16) 0 26%, transparent 29%),
+    repeating-linear-gradient(45deg, rgba(214,172,96,.07) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(-45deg, rgba(0,0,0,.22) 0 2px, transparent 2px 7px),
+    linear-gradient(160deg, var(--back-1), var(--back-2));
+  box-shadow:
+    inset 0 0 0 1px rgba(109,85,51,.42),
+    inset 0 0 calc(var(--cell) * .22) rgba(0,0,0,.6);
 }
-.cell.open{ background:var(--open); color:var(--open-text); }
 
-.glyph{
-  font-size:calc(var(--cell) * 0.56);
-  line-height:1;
+.cell .ic{
+  width:66%;
+  height:66%;
   pointer-events:none;
+  opacity:.94;
 }
-.arrows{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
-  justify-content:center;
-  width:100%;
-  font-weight:700;
-  color:#3b2f18;
-  line-height:1;
-  pointer-events:none;
-}
-.arrows span{ display:block; text-align:center; }
-.arrows.n1{ font-size:calc(var(--cell) * 0.6); }
-.arrows.n1 span{ width:100%; }
-.arrows.n2{ font-size:calc(var(--cell) * 0.42); }
-.arrows.n2 span{ width:50%; }
-.arrows.n3, .arrows.n4{ font-size:calc(var(--cell) * 0.34); }
-.arrows.n3 span, .arrows.n4 span{ width:50%; }
+.cell.t-arrow .ic{ width:80%; height:80%; }
 
-.coins{
+/* счётчики на клетке */
+.chip-coins,
+.chip-steps{
   position:absolute;
-  top:2%;
-  right:3%;
   z-index:4;
-  font-size:calc(var(--cell) * 0.26);
+  font-size:calc(var(--cell) * .27);
   font-weight:700;
-  color:var(--gold);
-  background:rgba(20,24,32,.88);
-  border-radius:5px;
-  padding:0 3px;
-  line-height:1.35;
+  line-height:1.25;
+  padding:0 calc(var(--cell) * .07);
+  border-radius:calc(var(--cell) * .09);
   pointer-events:none;
+  font-variant-numeric:tabular-nums;
+}
+.chip-coins{
+  top:2%;
+  right:2%;
+  color:#2a1c04;
+  background:linear-gradient(180deg, #f4cd6a, #d29c2a);
+  border:1px solid #6b4c08;
+  box-shadow:0 1px 2px rgba(0,0,0,.5);
+}
+.chip-steps{
+  bottom:2%;
+  left:2%;
+  color:#efe3c8;
+  background:rgba(30,22,12,.86);
+  border:1px solid rgba(214,172,96,.5);
 }
 
+/* корабль */
 .ship{
   position:absolute;
-  inset:8%;
-  border-radius:22%;
+  inset:6%;
+  z-index:3;
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:calc(var(--cell) * 0.5);
-  border:2px solid rgba(0,0,0,.35);
   cursor:pointer;
-  z-index:1;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.7));
+}
+.ship svg{ width:100%; height:100%; display:block; }
+.ship-letter{
+  font-family:var(--font-map);
+  font-weight:700;
+  font-size:8.6px;
+  text-anchor:middle;
+  fill:#2b1e08;
+  stroke:none;
+}
+.ship .deliv{
+  position:absolute;
+  right:-4%;
+  bottom:-6%;
+  font-size:calc(var(--cell) * .26);
+  font-weight:700;
+  line-height:1.2;
+  padding:0 calc(var(--cell) * .07);
+  border-radius:calc(var(--cell) * .09);
+  color:#2a1c04;
+  background:linear-gradient(180deg, #f4cd6a, #d29c2a);
+  border:1px solid #6b4c08;
 }
 
+/* пираты */
 .tokens{
   position:absolute;
-  left:0;
-  right:0;
+  left:2%;
+  right:2%;
   bottom:3%;
-  z-index:2;
+  z-index:5;
   display:flex;
   flex-wrap:wrap;
-  gap:2px;
-  align-items:center;
+  gap:calc(var(--cell) * .03);
+  align-items:flex-end;
   justify-content:center;
   pointer-events:none;
 }
-.token{
+.tok{
   position:relative;
-  width:calc(var(--cell) * 0.36);
-  height:calc(var(--cell) * 0.36);
-  border-radius:50%;
-  border:1px solid rgba(0,0,0,.55);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:calc(var(--cell) * 0.21);
-  font-weight:700;
-  color:#fff;
-  text-shadow:0 1px 1px rgba(0,0,0,.7);
+  width:calc(var(--cell) * .42);
+  height:calc(var(--cell) * .42);
   pointer-events:auto;
   cursor:pointer;
+  transition:transform .1s;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.75));
 }
-.token.movable{ outline:2px solid rgba(255,255,255,.7); outline-offset:1px; }
-.token.selected{ outline:3px solid #fff; outline-offset:2px; transform:scale(1.15); }
-.token.trapped{ box-shadow:0 0 0 2px var(--danger); }
-.token.spinner{ box-shadow:0 0 0 2px #c77dff; }
-.token.resting{ opacity:.55; }
-.token .coin{
+.tok svg{ width:100%; height:100%; display:block; overflow:visible; }
+.tok-shape{ stroke:#14100a; stroke-width:2.2; }
+.team-0 .tok-shape{ fill:var(--t0); }
+.team-1 .tok-shape{ fill:var(--t1); }
+.team-2 .tok-shape{ fill:var(--t2); }
+.team-3 .tok-shape{ fill:var(--t3); }
+.tok-num{
+  font-family:var(--font-ui);
+  font-weight:700;
+  font-size:14px;
+  text-anchor:middle;
+  fill:#fff;
+  stroke:none;
+}
+.team-3 .tok-num{ fill:#2a1d04; }
+.tok-coin{ fill:#f4cd6a; stroke:#2a1c04; stroke-width:1.6; }
+.tok-coin-in{ fill:none; stroke:#8a6410; stroke-width:1.1; }
+.pip{ stroke:#14100a; stroke-width:1.4; }
+.pip-trap{ fill:#d1483a; }
+.pip-rest{ fill:#c98a2a; }
+
+.tok.movable{ filter:drop-shadow(0 0 3px rgba(255,236,190,.95)) drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+.tok.trapped{ filter:drop-shadow(0 0 3px rgba(209,72,58,.95)) drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+.tok.selected{
+  transform:scale(1.22);
+  filter:
+    drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff)
+    drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff)
+    drop-shadow(0 0 5px var(--gold-hi));
+}
+.tok.resting{ opacity:.58; }
+.tok .lvl{
   position:absolute;
-  top:-12%;
-  right:-12%;
-  width:44%;
-  height:44%;
-  border-radius:50%;
-  background:var(--gold);
-  border:1px solid #6b4f00;
+  left:50%;
+  bottom:-38%;
+  transform:translateX(-50%);
+  font-size:calc(var(--cell) * .21);
+  font-weight:700;
+  line-height:1.25;
+  white-space:nowrap;
+  padding:0 calc(var(--cell) * .06);
+  border-radius:calc(var(--cell) * .07);
+  color:#f7e9c8;
+  background:rgba(24,16,8,.92);
+  border:1px solid rgba(214,172,96,.65);
+  font-variant-numeric:tabular-nums;
+  pointer-events:none;
 }
 
-/* подсветка ходов */
-.cell.target{ cursor:pointer; }
-.cell.target::before{
+/* ================= подсветка ходов =================
+   круг = ход пирата, штриховая рамка = ход корабля, ромб = выбор направления */
+
+.cell.hl-move, .cell.hl-ship, .cell.hl-pick{ cursor:pointer; }
+
+.cell.hl-move::before,
+.cell.hl-ship::before,
+.cell.hl-pick::before{
   content:"";
   position:absolute;
   inset:0;
-  z-index:3;
-  border:3px solid var(--target);
-  background:rgba(74,222,128,.22);
+  z-index:2;
   pointer-events:none;
 }
-.cell.target-ship::before{ border-color:var(--target-ship); background:rgba(56,189,248,.22); }
-.cell.target-choice::before{ border-color:var(--target-choice); background:rgba(199,125,255,.28); }
+.cell.hl-move::after,
+.cell.hl-ship::after,
+.cell.hl-pick::after{
+  content:"";
+  position:absolute;
+  z-index:6;
+  pointer-events:none;
+}
+
+.cell.hl-move::before{ background:radial-gradient(circle at 50% 50%, rgba(255,207,92,.34), rgba(255,207,92,.10) 70%); }
+.cell.hl-move::after{
+  inset:16%;
+  border:calc(var(--cell) * .07) solid var(--hl-move);
+  border-radius:50%;
+  box-shadow:0 0 8px rgba(255,207,92,.75), inset 0 0 5px rgba(255,207,92,.45);
+}
+
+.cell.hl-ship::before{ background:rgba(90,210,234,.20); }
+.cell.hl-ship::after{
+  inset:6%;
+  border:calc(var(--cell) * .07) dashed var(--hl-ship);
+  border-radius:calc(var(--cell) * .1);
+  box-shadow:0 0 8px rgba(90,210,234,.6);
+}
+
+.cell.hl-pick::before{ background:rgba(197,140,255,.26); }
+.cell.hl-pick::after{
+  inset:20%;
+  border:calc(var(--cell) * .07) solid var(--hl-pick);
+  transform:rotate(45deg);
+  box-shadow:0 0 9px rgba(197,140,255,.8);
+  animation:pickPulse 1.1s ease-in-out infinite;
+}
+@keyframes pickPulse{
+  0%,100%{ opacity:1; }
+  50%{ opacity:.45; }
+}
+
 .cell.pickable{ cursor:pointer; }
 
-/* ---------- панель ---------- */
+/* ================= панель ================= */
 
 #panel{
-  width:min(360px, 92vw);
+  width:min(380px, 96vw);
   max-height:var(--board);
   overflow-y:auto;
-  background:var(--panel);
+  background:linear-gradient(180deg, #13202b, var(--panel));
   border:1px solid var(--line);
   border-radius:12px;
-  padding:14px;
+  padding:14px 15px 18px;
+  box-shadow:0 20px 50px rgba(0,0,0,.5);
+  scrollbar-width:thin;
 }
-@media (max-width: 999px){
+@media (min-width: 1040px){
+  #panel{ max-height:calc(100vh - 28px); flex:0 1 380px; }
+}
+@media (max-width: 1039px){
   #panel{ max-height:none; }
 }
-#panel h2{ margin:0 0 8px; font-size:18px; }
-#panel h3{ margin:16px 0 6px; font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+#panel::-webkit-scrollbar{ width:9px; }
+#panel::-webkit-scrollbar-thumb{ background:#26394a; border-radius:6px; }
 
-.room-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
-.room-code{ font-weight:700; letter-spacing:2px; }
+#panel h3{
+  margin:18px 0 7px;
+  font-family:var(--font-ui);
+  font-size:11px;
+  font-weight:700;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.16em;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+#panel h3::after{ content:""; flex:1; height:1px; background:var(--line); }
 
-.score{ display:flex; gap:8px; }
+.brand{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  font-family:var(--font-map);
+  font-size:22px;
+  letter-spacing:.18em;
+  color:var(--gold-hi);
+}
+.brand svg{ width:26px; height:26px; color:var(--gold); flex:0 0 auto; }
+
+.room-row{ display:flex; gap:7px; align-items:center; flex-wrap:wrap; margin:10px 0 14px; }
+.room-code{
+  font-family:var(--font-map);
+  font-weight:700;
+  letter-spacing:.18em;
+  color:var(--gold-hi);
+  background:#0a121a;
+  border:1px solid var(--line-warm);
+  border-radius:6px;
+  padding:2px 9px;
+}
+
+.score{ display:flex; gap:9px; }
 .score .chip{
-  flex:1;
+  flex:1 1 0;
   background:var(--panel-2);
   border:1px solid var(--line);
   border-radius:10px;
-  padding:8px 10px;
+  padding:8px 10px 9px;
   text-align:center;
 }
-.score .chip b{ font-size:22px; display:block; }
-.score .chip.you{ border-color:#4ade80; }
+.score .chip b{
+  display:block;
+  font-family:var(--font-map);
+  font-size:27px;
+  line-height:1.05;
+  color:var(--gold-hi);
+}
+.score .chip .who{ font-size:12px; color:var(--muted); }
+.score .chip.you{ border-color:var(--gold); background:linear-gradient(180deg,#1d2a1c00,#1a2330); }
+.score .chip.you .who{ color:var(--text); }
+.score .bar{
+  margin-top:6px;
+  height:4px;
+  border-radius:3px;
+  background:#0a121a;
+  overflow:hidden;
+  border:1px solid #23323f;
+}
+.score .bar i{ display:block; height:100%; background:linear-gradient(90deg,#a8781f,#f2c862); }
 
 .turn{
   margin-top:12px;
@@ -307,88 +610,155 @@ input[type="text"]{
   border-radius:10px;
   background:var(--panel-2);
   border:1px solid var(--line);
-  font-size:17px;
+  border-left:4px solid var(--line);
+  font-size:16px;
   font-weight:600;
 }
-.turn.mine{ background:#14472c; border-color:#4ade80; }
+.turn .line{ display:flex; align-items:center; gap:8px; }
+.turn.mine{ background:linear-gradient(180deg,#1c2a1f,#13202b); border-color:#2f6b45; border-left-color:var(--ok); }
 .turn small{ display:block; font-weight:400; font-size:13px; color:var(--muted); margin-top:3px; }
 
-.dot{
-  display:inline-block;
-  width:12px;
-  height:12px;
-  border-radius:50%;
-  vertical-align:-1px;
-  margin-right:4px;
-  border:1px solid rgba(0,0,0,.5);
+.whoami{ margin-top:9px; font-size:13px; color:var(--muted); display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+
+.mark{ width:15px; height:15px; flex:0 0 auto; display:block; }
+.mark .tok-shape{ stroke-width:2.6; }
+
+.teams{ margin-top:10px; display:grid; gap:5px; }
+.teams .row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:13px;
+  padding:5px 8px;
+  border-radius:8px;
+  background:#0d1620;
+  border:1px solid #1c2a36;
 }
+.teams .row.active{ border-color:var(--gold); background:#14202b; }
+.teams .row .nm{ flex:1; }
+.teams .row .own{ color:var(--muted); font-size:12px; }
+.teams .row .cnt{
+  font-weight:700;
+  color:var(--gold-hi);
+  font-variant-numeric:tabular-nums;
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+}
+.teams .row .cnt svg{ width:13px; height:13px; color:var(--gold); }
+.teams .row.mine .nm{ color:var(--text); font-weight:600; }
 
 .pending{
   margin-top:10px;
   padding:10px 12px;
   border-radius:10px;
-  background:#3b1f52;
-  border:1px solid var(--target-choice);
+  background:linear-gradient(180deg,#2b1c3d,#1d1429);
+  border:1px solid var(--hl-pick);
+  font-size:14px;
 }
 
 .controls{ margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.controls .sel{ display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); }
 
-.statuses{ margin:6px 0 0; padding-left:18px; font-size:13px; color:var(--muted); }
-.statuses li{ margin:2px 0; }
+.statuses{ margin:0; padding:0; list-style:none; font-size:13px; display:grid; gap:4px; }
+.statuses li{ display:flex; align-items:center; gap:7px; color:var(--muted); }
+.statuses li b{ color:var(--text); font-weight:600; }
 
 .banner{
   margin-top:12px;
   padding:14px;
   border-radius:10px;
   text-align:center;
-  font-size:20px;
+  font-family:var(--font-map);
+  font-size:21px;
   font-weight:700;
-  background:#2b3450;
+  background:var(--panel-2);
   border:1px solid var(--line);
 }
-.banner.win{ background:#14472c; border-color:#4ade80; }
-.banner.lose{ background:#4a1d1d; border-color:var(--danger); }
+.banner.win{ background:linear-gradient(180deg,#1b3d28,#12261a); border-color:var(--ok); color:#b9f0cd; }
+.banner.lose{ background:linear-gradient(180deg,#3d1b18,#261110); border-color:var(--danger); color:#f6c4be; }
 
-.conn{ margin-top:10px; font-size:13px; }
-.conn .dot{ width:9px; height:9px; }
-.conn.online{ color:#4ade80; }
-.conn.offline, .conn.reconnecting{ color:#f59e0b; }
+.conn{ margin-top:10px; font-size:12.5px; display:flex; align-items:center; gap:7px; color:var(--muted); }
+.conn .dot{ width:9px; height:9px; border-radius:50%; box-shadow:0 0 6px currentColor; }
+.conn.online{ color:var(--ok); }
+.conn.offline{ color:var(--danger); }
+.conn.connecting, .conn.reconnecting{ color:#e0a83c; }
 
 .log{
   list-style:none;
   margin:0;
   padding:0;
-  max-height:34vh;
+  max-height:28vh;
   overflow-y:auto;
-  background:#121824;
+  background:#0a121a;
   border:1px solid var(--line);
   border-radius:8px;
+  scrollbar-width:thin;
 }
+.log::-webkit-scrollbar{ width:8px; }
+.log::-webkit-scrollbar-thumb{ background:#26394a; border-radius:6px; }
 .log li{
-  padding:6px 9px;
-  font-size:13px;
-  line-height:1.35;
-  border-bottom:1px solid rgba(255,255,255,.06);
+  padding:6px 10px;
+  font-size:12.5px;
+  line-height:1.4;
+  color:var(--muted);
+  border-bottom:1px solid rgba(255,255,255,.05);
 }
-.log li:first-child{ color:#fff; }
+.log li:first-child{ color:var(--text); background:rgba(217,168,63,.08); border-left:2px solid var(--gold); }
 .log li:last-child{ border-bottom:none; }
+.log li.empty{ color:var(--muted); font-style:italic; }
 
-.legend{ font-size:12px; color:var(--muted); line-height:1.6; margin-top:10px; }
+/* справочник */
+.ref{ margin-top:16px; font-size:12.5px; }
+.ref summary{
+  cursor:pointer;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.14em;
+  font-size:11px;
+  font-weight:700;
+  padding:5px 0;
+}
+.ref summary:hover{ color:var(--text); }
+.hl-legend{ display:grid; gap:7px; margin:8px 0 12px; }
+.hl-legend div{ display:flex; align-items:center; gap:9px; color:var(--muted); }
+.swatch{ width:20px; height:20px; flex:0 0 auto; border-radius:2px; }
+.swatch.move{ border:3px solid var(--hl-move); border-radius:50%; }
+.swatch.ship{ border:3px dashed var(--hl-ship); }
+.swatch.pick{ border:3px solid var(--hl-pick); transform:rotate(45deg) scale(.8); }
+.ref-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(112px, 1fr));
+  gap:6px;
+}
+.ref-i{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  background:linear-gradient(150deg, var(--paper-1), var(--paper-2));
+  border-radius:6px;
+  padding:4px 6px;
+  color:#3a2a17;
+  font-size:11.5px;
+  border:1px solid #7a6134;
+}
+.ref-i .ic{ width:22px; height:22px; flex:0 0 auto; }
 
-/* ---------- всплывающее меню действий ---------- */
+/* ================= меню действий ================= */
 
 #menu{
   position:fixed;
   z-index:100;
-  background:var(--panel);
-  border:1px solid var(--target);
-  border-radius:10px;
+  background:linear-gradient(180deg,#1a2836,#111a24);
+  border:1px solid var(--gold);
+  border-radius:9px;
   padding:6px;
   display:flex;
   gap:6px;
   flex-wrap:wrap;
-  box-shadow:0 6px 20px rgba(0,0,0,.55);
+  box-shadow:0 10px 28px rgba(0,0,0,.7);
 }
+#menu button{ white-space:nowrap; }
 
 #toast{
   position:fixed;
@@ -396,21 +766,205 @@ input[type="text"]{
   bottom:24px;
   transform:translateX(-50%);
   z-index:200;
-  background:#4a1d1d;
-  border:1px solid var(--danger);
-  color:#ffe4e4;
-  padding:10px 16px;
+  padding:11px 18px;
   border-radius:10px;
   max-width:90vw;
+  font-size:14px;
+  box-shadow:0 12px 30px rgba(0,0,0,.6);
+  background:linear-gradient(180deg,#3d1b18,#261110);
+  border:1px solid var(--danger);
+  color:#ffd9d4;
+}
+#toast.ok{
+  background:linear-gradient(180deg,#1b3d28,#12261a);
+  border-color:var(--ok);
+  color:#c6f2d8;
 }
 </style>
 </head>
 <body>
 
+<!-- ================= набор иконок ================= -->
+<svg id="sprite" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
+
+  <!-- роза ветров -->
+  <symbol id="i-compass" viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="45"/>
+    <circle cx="50" cy="50" r="34"/>
+    <path d="M50 6 55.5 44.5 94 50 55.5 55.5 50 94 44.5 55.5 6 50 44.5 44.5Z"/>
+    <path d="M50 50 71 29M50 50 29 29M50 50 71 71M50 50 29 71"/>
+    <path d="M50 14 53.5 46.5 86 50 53.5 53.5 50 86 46.5 53.5 14 50 46.5 46.5Z" fill="currentColor" fill-opacity=".22"/>
+  </symbol>
+
+  <!-- стрелка-луч, смотрит вверх; поворачивается по направлению -->
+  <symbol id="i-arrow" viewBox="0 0 24 24">
+    <path d="M12 12.8V4.9"/>
+    <path d="M8.5 8.3 12 4.7l3.5 3.6"/>
+  </symbol>
+
+  <!-- сундук с монетами -->
+  <symbol id="i-money" viewBox="0 0 24 24">
+    <path d="M4 12.2h16V19a1.2 1.2 0 0 1-1.2 1.2H5.2A1.2 1.2 0 0 1 4 19z"/>
+    <path d="M4 12.2a8 5.4 0 0 1 16 0" fill="currentColor" fill-opacity=".16"/>
+    <path d="M10.4 11.2h3.2v3.4h-3.2z" fill="currentColor" fill-opacity=".3"/>
+    <path d="M12 14.8v1.9"/>
+  </symbol>
+
+  <!-- джунгли -->
+  <symbol id="i-jungle" viewBox="0 0 24 24">
+    <path d="M12.6 20.4c-.5-4.6-.2-7.9 1.3-10.6"/>
+    <path d="M13.9 9.8c-2.6-1.9-5.4-1.7-7.2.7"/>
+    <path d="M13.9 9.8c-1.4-2.9-.3-5.3 2.3-6.2"/>
+    <path d="M13.9 9.8c2.7-1.5 5.3-.6 6.4 1.8"/>
+    <path d="M13.9 9.8c-.2-2.6 1.2-4.6 3.8-5"/>
+    <path d="M7.6 20.4h9.6"/>
+  </symbol>
+
+  <!-- пустыня -->
+  <symbol id="i-desert" viewBox="0 0 24 24">
+    <circle cx="17.4" cy="6.6" r="2.7"/>
+    <path d="M2.6 18.4c3-5 6.6-5 9.6 0"/>
+    <path d="M10.6 18.4c2.6-3.9 5.6-3.9 10.8 0"/>
+    <path d="M2.6 20.6h18.8"/>
+  </symbol>
+
+  <!-- болото -->
+  <symbol id="i-swamp" viewBox="0 0 24 24">
+    <path d="M8.2 18.2V8.6"/>
+    <path d="M8.2 8.6c-1.6-.3-2.3-1.7-2-3.6 1.9.2 2.8 1.4 2 3.6Z" fill="currentColor" fill-opacity=".22"/>
+    <path d="M13.4 18.2v-6.4"/>
+    <path d="M13.4 11.8c-1.4-.3-2-1.5-1.8-3.2 1.7.2 2.5 1.3 1.8 3.2Z" fill="currentColor" fill-opacity=".22"/>
+    <path d="M2.8 18.6c1.4-1.3 2.8-1.3 4.2 0s2.8 1.3 4.2 0 2.8-1.3 4.2 0 2.8 1.3 4.2 0"/>
+    <path d="M2.8 21c1.4-1.3 2.8-1.3 4.2 0s2.8 1.3 4.2 0 2.8-1.3 4.2 0 2.8 1.3 4.2 0"/>
+    <circle cx="17.6" cy="13.4" r="1"/>
+  </symbol>
+
+  <!-- гора -->
+  <symbol id="i-mountain" viewBox="0 0 24 24">
+    <path d="M2.4 19 9.4 7.2 14 15l2.6-4.2L21.6 19Z"/>
+    <path d="M7.3 12.6 9.4 10.4l2.1 2.2"/>
+    <path d="M15.2 13.6l1.4-1.4 1.4 1.5" fill="none"/>
+  </symbol>
+
+  <!-- лёд -->
+  <symbol id="i-ice" viewBox="0 0 24 24">
+    <path d="M12 3.2v17.6"/>
+    <path d="M4.4 7.6 19.6 16.4"/>
+    <path d="M4.4 16.4 19.6 7.6"/>
+    <path d="M9.5 5.9 12 8.3l2.5-2.4"/>
+    <path d="M9.5 18.1 12 15.7l2.5 2.4"/>
+    <path d="M5.4 11.6 4.5 8.2l3.4-.9"/>
+    <path d="M18.6 12.4l.9 3.4-3.4.9"/>
+  </symbol>
+
+  <!-- крокодил (вид сверху) -->
+  <symbol id="i-croc" viewBox="0 0 24 24">
+    <path d="M4 12c0-2.3 1.7-3.9 3.9-3.9h1.7l10.6 3c1 .3 1 1.5 0 1.8l-10.6 3H7.9C5.7 15.9 4 14.3 4 12Z"/>
+    <circle cx="6.9" cy="10.3" r=".85" fill="currentColor"/>
+    <circle cx="6.9" cy="13.7" r=".85" fill="currentColor"/>
+    <path d="M11.4 14.5l.8-1.3M14.2 13.7l.8-1.2M17 12.9l.7-1.1"/>
+  </symbol>
+
+  <!-- бочка рома -->
+  <symbol id="i-rum" viewBox="0 0 24 24">
+    <path d="M8.2 4.2h7.6c1.3 2.4 2 4.9 2 7.8s-.7 5.4-2 7.8H8.2c-1.3-2.4-2-4.9-2-7.8s.7-5.4 2-7.8Z"/>
+    <path d="M6.5 8.8h11M6.5 15.2h11"/>
+    <path d="M12 4.2v15.6"/>
+  </symbol>
+
+  <!-- капкан -->
+  <symbol id="i-trap" viewBox="0 0 24 24">
+    <path d="M4.4 8.2c2.2 3.2 4.7 4.8 7.6 4.8s5.4-1.6 7.6-4.8"/>
+    <path d="M4.4 17.8c2.2-3.2 4.7-4.8 7.6-4.8s5.4 1.6 7.6 4.8"/>
+    <path d="M7.6 10.6v1.8M10.8 12.1v1.1M13.2 12.1v1.1M16.4 10.6v1.8"/>
+    <circle cx="4.4" cy="8.2" r="1.3"/>
+    <circle cx="19.6" cy="8.2" r="1.3"/>
+    <circle cx="4.4" cy="17.8" r="1.3"/>
+    <circle cx="19.6" cy="17.8" r="1.3"/>
+  </symbol>
+
+  <!-- конь -->
+  <symbol id="i-knight" viewBox="0 0 24 24">
+    <path d="M7.6 19.6c0-2.4.5-3.8 1.7-5 1.4-1.4 1.8-2.9 1.1-4.4l-1.3 1.6-2.5.6c.3-2.6 1.6-4.7 3.9-6.3l3-2.1-.5 2.3 1.8 2 2.3-.6-1 2.6c1.6 2 2.3 4.6 2.3 9.3Z"/>
+    <circle cx="10.8" cy="8.9" r=".8" fill="currentColor"/>
+    <path d="M6.6 20.6h11"/>
+  </symbol>
+
+  <!-- пушка, ствол смотрит вправо -->
+  <symbol id="i-cannon" viewBox="0 0 24 24">
+    <circle cx="5.9" cy="12" r="3.7"/>
+    <path d="M6.6 9.5h8v5h-8z"/>
+    <path d="M14.3 8.6h2.3v6.8h-2.3z"/>
+    <circle cx="20.5" cy="12" r="1.8" fill="currentColor"/>
+  </symbol>
+
+  <!-- форт -->
+  <symbol id="i-fort" viewBox="0 0 24 24">
+    <path d="M3.6 20.4v-9.2h2.2V8.8H8v2.4h2.9V8.8h2.2v2.4H16V8.8h2.2v2.4h2.2v9.2Z"/>
+    <path d="M9.7 20.4v-4.1a2.3 2.3 0 0 1 4.6 0v4.1"/>
+  </symbol>
+
+  <!-- форт с туземкой -->
+  <symbol id="i-fortNative" viewBox="0 0 24 24">
+    <path d="M3.6 20.4v-8.6h1.8V9.6h2v2.2h2.2V9.6h2v2.2h2.2V9.6h2v2.2h1.8v8.6Z"/>
+    <circle cx="12" cy="14.2" r="1.7"/>
+    <path d="M9.6 20.4c0-2.2 1.1-3.4 2.4-3.4s2.4 1.2 2.4 3.4"/>
+    <path d="M10.1 13.2c.5-.9 3.3-.9 3.8 0"/>
+  </symbol>
+
+  <!-- воздушный шар -->
+  <symbol id="i-balloon" viewBox="0 0 24 24">
+    <path d="M12 3.2c3.7 0 6.4 2.9 6.4 6.4 0 3.5-3.5 6.2-6.4 8.9-2.9-2.7-6.4-5.4-6.4-8.9C5.6 6.1 8.3 3.2 12 3.2Z"/>
+    <path d="M9.4 4.3c-1.2 3.7-1.1 8.6 1.1 13.5"/>
+    <path d="M14.6 4.3c1.2 3.7 1.1 8.6-1.1 13.5"/>
+    <path d="M10.1 18.9h3.8l-.5 2.5h-2.8z"/>
+    <path d="M10.6 17.4l-.4 1.5M13.4 17.4l.4 1.5"/>
+  </symbol>
+
+  <!-- людоед -->
+  <symbol id="i-cannibal" viewBox="0 0 24 24">
+    <path d="M12 3.3c3.7 0 6 2.7 6 6.6 0 2.1-.5 3.8-1.5 5.4-.9 1.6-1.4 3.4-1.4 5.2H8.9c0-1.8-.5-3.6-1.4-5.2-1-1.6-1.5-3.3-1.5-5.4 0-3.9 2.3-6.6 6-6.6Z"/>
+    <path d="M8.6 9 11 10.5 8.6 12Z" fill="currentColor"/>
+    <path d="M15.4 9 13 10.5l2.4 1.5Z" fill="currentColor"/>
+    <path d="M8.8 15.6h6.4"/>
+    <path d="M10.2 15.6v1.8M12 15.6v1.8M13.8 15.6v1.8"/>
+  </symbol>
+
+  <!-- самолёт (вид сверху) -->
+  <symbol id="i-plane" viewBox="0 0 24 24">
+    <path d="M12 2.6c1 0 1.7 1.2 1.7 3.1v3.1l7.5 4.3v2.1l-7.5-2.2v3.6l2.3 1.7v1.6L12 18.8l-4 1.1v-1.6l2.3-1.7v-3.6l-7.5 2.2v-2.1l7.5-4.3V5.7c0-1.9.7-3.1 1.7-3.1Z"/>
+  </symbol>
+
+  <!-- корабль: парус кремовый, корпус — цветом команды -->
+  <symbol id="i-ship" viewBox="0 0 32 32">
+    <path d="M3.4 20.6h25.2l-3.4 5.8a2.2 2.2 0 0 1-1.9 1.1H8.7a2.2 2.2 0 0 1-1.9-1.1z" fill="currentColor" stroke="#100b05" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M16 4.2v16.4" stroke="#100b05" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M16.9 4.8 27 19.4H16.9z" fill="#f0e2c1" stroke="#100b05" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M15.1 7.6 7.6 19.4h7.5z" fill="#f0e2c1" stroke="#100b05" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M16 4.2 21.4 6 16 7.8z" fill="currentColor" stroke="#100b05" stroke-width="1.4" stroke-linejoin="round"/>
+  </symbol>
+
+  <!-- монета для панели -->
+  <symbol id="i-coin" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.4" fill="currentColor" fill-opacity=".28"/>
+    <circle cx="12" cy="12" r="5.2"/>
+  </symbol>
+
+</svg>
+
+<!-- ================= экран входа ================= -->
+
 <div id="join">
   <div class="card">
-    <h1>🏴‍☠️ Шакал</h1>
-    <p class="muted">Настольный «Шакал» на двоих через интернет. Придумайте код комнаты и отправьте сопернику ссылку — кто зайдёт первым, тот играет за A, второй за B.</p>
+    <svg class="ic rose-bg" viewBox="0 0 100 100" aria-hidden="true"><use href="#i-compass"/></svg>
+
+    <h1>ШАКАЛ</h1>
+    <p class="sub">партия на двоих, остров на 117 клеток и 37 монет</p>
+
+    <p class="muted">
+      Придумайте код комнаты и пошлите сопернику ссылку. Кто вошёл первым — играет за&nbsp;A,
+      второй за&nbsp;B. Побеждает тот, кто первым донесёт до своих кораблей 19 монет.
+    </p>
 
     <form id="join-form" autocomplete="off">
       <input id="room-input" type="text" maxlength="16" placeholder="КОД КОМНАТЫ" spellcheck="false">
@@ -424,43 +978,112 @@ input[type="text"]{
       <button id="join-copy" class="small" type="button">Скопировать</button>
     </div>
 
+    <div class="rule"></div>
+
+    <div class="crew-line">
+      <span>
+        <svg class="mark" viewBox="0 0 32 32"><circle class="tok-shape" cx="16" cy="16" r="12" style="fill:var(--t0)"/></svg>
+        север
+      </span>
+      <span>
+        <svg class="mark" viewBox="0 0 32 32"><rect class="tok-shape" x="4.5" y="4.5" width="23" height="23" rx="3" style="fill:var(--t1)"/></svg>
+        запад
+      </span>
+      <span>
+        <svg class="mark" viewBox="0 0 32 32"><path class="tok-shape" d="M16 3 29 16 16 29 3 16Z" style="fill:var(--t2)"/></svg>
+        юг
+      </span>
+      <span>
+        <svg class="mark" viewBox="0 0 32 32"><path class="tok-shape" d="M16 3.4 27 9.7v12.6L16 28.6 5 22.3V9.7Z" style="fill:var(--t3)"/></svg>
+        восток
+      </span>
+    </div>
+
     <p class="rules muted">
-      Код: латинские буквы, цифры и дефис, до 16 знаков.
-      Игрок A ходит командами 🔴 север и 🟢 юг, игрок B — 🔵 запад и 🟡 восток.
-      Кликните своего пирата, чтобы увидеть куда он может пойти.
+      Игрок A ведёт круглую северную и ромбическую южную команды, игрок B — квадратную западную
+      и шестиугольную восточную. Код комнаты: латиница, цифры и дефис, до 16 знаков.
+      Кликните своего пирата, чтобы увидеть, куда он может пойти.
     </p>
   </div>
 </div>
 
+<!-- ================= игровой экран ================= -->
+
 <div id="game" class="hidden">
-  <div id="board"></div>
+  <div class="board-frame">
+    <div id="board">
+      <div class="island"><div class="island-in"></div></div>
+      <svg class="ic rose" viewBox="0 0 100 100" aria-hidden="true"><use href="#i-compass"/></svg>
+    </div>
+  </div>
 
   <aside id="panel">
+    <div class="brand">
+      <svg class="ic" viewBox="0 0 100 100" aria-hidden="true"><use href="#i-compass"/></svg>
+      ШАКАЛ
+    </div>
+
     <div class="room-row">
       <span class="muted">Комната</span>
       <span id="panel-room" class="room-code">—</span>
-      <button id="panel-copy" class="small" type="button">Копировать ссылку</button>
+      <button id="panel-copy" class="small" type="button">Ссылка</button>
       <button id="panel-leave" class="small" type="button">Выйти</button>
     </div>
 
     <div id="score" class="score"></div>
     <div id="turn" class="turn"></div>
-    <div id="whoami" class="muted" style="margin-top:8px;"></div>
+    <div id="whoami" class="whoami"></div>
+    <div id="teams" class="teams"></div>
     <div id="pending" class="pending hidden"></div>
     <div id="controls" class="controls"></div>
     <div id="banner" class="banner hidden"></div>
     <div id="conn" class="conn"></div>
 
-    <h3>Состояния пиратов</h3>
+    <h3>Пираты</h3>
     <ul id="statuses" class="statuses"></ul>
 
-    <h3>События</h3>
+    <h3>Судовой журнал</h3>
     <ol id="log" class="log"></ol>
 
-    <div class="legend">
-      Зелёная рамка — куда можно пойти, голубая — ход корабля, фиолетовая — выбор по стрелке / коню / самолёту.
-      Жёлтая точка на пирате — несёт монету. Красный ободок — в ловушке, фиолетовый — вертушка.
-    </div>
+    <details class="ref">
+      <summary>Легенда и справочник клеток</summary>
+
+      <div class="hl-legend">
+        <div><span class="swatch move"></span>круг — куда пойдёт пират</div>
+        <div><span class="swatch ship"></span>штриховая рамка — куда сдвинется корабль</div>
+        <div><span class="swatch pick"></span>ромб — выбор направления (стрелка, конь, самолёт)</div>
+        <div><span class="swatch" style="border:3px solid #f4cd6a;border-radius:50%;background:#f4cd6a"></span>золотая точка на пирате — несёт монету</div>
+        <div><span class="swatch" style="border:3px solid #d1483a;border-radius:50%;background:#d1483a"></span>красная точка — в капкане</div>
+        <div><span class="swatch" style="border:3px solid #c98a2a;border-radius:50%;background:#c98a2a"></span>рыжая точка и блёклый токен — пропускает ход</div>
+        <div><span class="swatch" style="border:1px solid rgba(214,172,96,.65);background:rgba(24,16,8,.92);border-radius:3px"></span>подпись «3/5» под пиратом — уровень лабиринта</div>
+      </div>
+
+      <div class="ref-grid">
+        <span class="ref-i"><svg class="ic t-arrow" viewBox="0 0 24 24"><use href="#i-arrow"/></svg>стрелки</span>
+        <span class="ref-i"><svg class="ic t-money" viewBox="0 0 24 24"><use href="#i-money"/></svg>клад</span>
+        <span class="ref-i"><svg class="ic t-jungle" viewBox="0 0 24 24"><use href="#i-jungle"/></svg>джунгли</span>
+        <span class="ref-i"><svg class="ic t-desert" viewBox="0 0 24 24"><use href="#i-desert"/></svg>пустыня</span>
+        <span class="ref-i"><svg class="ic t-swamp" viewBox="0 0 24 24"><use href="#i-swamp"/></svg>болото</span>
+        <span class="ref-i"><svg class="ic t-mountain" viewBox="0 0 24 24"><use href="#i-mountain"/></svg>гора</span>
+        <span class="ref-i"><svg class="ic t-ice" viewBox="0 0 24 24"><use href="#i-ice"/></svg>лёд</span>
+        <span class="ref-i"><svg class="ic t-croc" viewBox="0 0 24 24"><use href="#i-croc"/></svg>крокодил</span>
+        <span class="ref-i"><svg class="ic t-rum" viewBox="0 0 24 24"><use href="#i-rum"/></svg>ром</span>
+        <span class="ref-i"><svg class="ic t-trap" viewBox="0 0 24 24"><use href="#i-trap"/></svg>капкан</span>
+        <span class="ref-i"><svg class="ic t-knight" viewBox="0 0 24 24"><use href="#i-knight"/></svg>конь</span>
+        <span class="ref-i"><svg class="ic t-cannon" viewBox="0 0 24 24"><use href="#i-cannon"/></svg>пушка</span>
+        <span class="ref-i"><svg class="ic t-fort" viewBox="0 0 24 24"><use href="#i-fort"/></svg>форт</span>
+        <span class="ref-i"><svg class="ic t-fortNative" viewBox="0 0 24 24"><use href="#i-fortNative"/></svg>форт с туземкой</span>
+        <span class="ref-i"><svg class="ic t-balloon" viewBox="0 0 24 24"><use href="#i-balloon"/></svg>шар</span>
+        <span class="ref-i"><svg class="ic t-cannibal" viewBox="0 0 24 24"><use href="#i-cannibal"/></svg>людоед</span>
+        <span class="ref-i"><svg class="ic t-plane" viewBox="0 0 24 24"><use href="#i-plane"/></svg>самолёт</span>
+      </div>
+
+      <p class="muted" style="margin-top:10px">
+        Золотой счётчик в углу клетки — монеты, тёмный слева внизу — число уровней лабиринта.
+        Джунгли, пустыня, болото и гора: пират идёт вглубь по одному уровню за ход и выбить его
+        может только враг с того же уровня.
+      </p>
+    </details>
   </aside>
 </div>
 
