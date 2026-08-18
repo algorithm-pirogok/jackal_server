@@ -17,8 +17,14 @@ export const DIRS8 = [N, NE, E, SE, S, SW, W, NW];
 // дальше, либо задерживает — оставленная там монета потерялась бы.
 export const STATIONARY = new Set(["empty", "money", "fort", "fortNative", "cannibal"]);
 
-// Вертушки: сколько ходов занимает прохождение клетки.
-export const SPINNER_STEPS = { jungle: 2, desert: 3, swamp: 4, mountain: 5 };
+// Лабиринты: сколько внутренних уровней у клетки. Пират входит на уровень 1,
+// каждый ход продвигается на следующий и выйти может только с последнего.
+export const MAZE_LEVELS = { jungle: 2, desert: 3, swamp: 4, mountain: 5 };
+
+export function mazeLevelsOf(cell) {
+  if (!cell || !MAZE_LEVELS[cell.type]) return 0;
+  return cell.steps ?? MAZE_LEVELS[cell.type];
+}
 
 // Две пушки, у каждой своё направление выстрела.
 const CANNON_DIRS = [N, E];
@@ -71,9 +77,9 @@ export function buildDeck() {
 
   for (const dirs of ARROW_SHAPES) deck.push({ type: "arrow", dirs });
 
-  const spinnerCounts = { jungle: 5, desert: 4, swamp: 2, mountain: 1 };
-  for (const [type, count] of Object.entries(spinnerCounts)) {
-    for (let i = 0; i < count; i++) deck.push({ type, steps: SPINNER_STEPS[type] });
+  const mazeCounts = { jungle: 5, desert: 4, swamp: 2, mountain: 1 };
+  for (const [type, count] of Object.entries(mazeCounts)) {
+    for (let i = 0; i < count; i++) deck.push({ type, steps: MAZE_LEVELS[type] });
   }
 
   return deck;

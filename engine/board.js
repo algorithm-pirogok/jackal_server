@@ -37,12 +37,33 @@ function range(from, to) {
 
 // Берега в порядке хода: N, W, S, E. Чередование по чётности даёт чередование
 // людей — команды 0 и 2 у игрока A, команды 1 и 3 у игрока B.
+// inward — куда смотрит корабль. Пират сходит на одну единственную клетку,
+// ту, что прямо перед носом, а не на три ближайшие.
 export const SHORES = [
-  { team: 0, shore: "N", cells: range(2, 10).map((c) => [0, c]) },
-  { team: 1, shore: "W", cells: range(2, 10).map((r) => [r, 0]) },
-  { team: 2, shore: "S", cells: range(2, 10).map((c) => [12, c]) },
-  { team: 3, shore: "E", cells: range(2, 10).map((r) => [r, 12]) },
+  { team: 0, shore: "N", inward: [1, 0], cells: range(2, 10).map((c) => [0, c]) },
+  { team: 1, shore: "W", inward: [0, 1], cells: range(2, 10).map((r) => [r, 0]) },
+  { team: 2, shore: "S", inward: [-1, 0], cells: range(2, 10).map((c) => [12, c]) },
+  { team: 3, shore: "E", inward: [0, -1], cells: range(2, 10).map((r) => [r, 12]) },
 ].map((s) => ({ ...s, start: s.cells[Math.floor(s.cells.length / 2)] }));
+
+// Клетка берега, на которую сходит пират с корабля, стоящего в [r, c].
+export function landingCellFor(teamId, ship) {
+  const { inward } = SHORES[teamId];
+  return [ship[0] + inward[0], ship[1] + inward[1]];
+}
+
+// Вода вокруг острова поделена на четыре сектора — по одному на команду.
+// Возвращает команды, чьей водой считается клетка: угловые бухты граничат
+// с двумя берегами сразу и принадлежат обеим.
+export function seaSideTeams(r, c) {
+  if (!isSea(r, c)) return [];
+  const teams = [];
+  if (r <= ISLAND_MIN) teams.push(0); // север
+  if (c <= ISLAND_MIN) teams.push(1); // запад
+  if (r >= ISLAND_MAX) teams.push(2); // юг
+  if (c >= ISLAND_MAX) teams.push(3); // восток
+  return teams;
+}
 
 export function createBoard(seed) {
   const deck = shuffle(makeRng(seed), buildDeck());
