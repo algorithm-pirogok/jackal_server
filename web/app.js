@@ -9,9 +9,9 @@ const GOAL = 19;
 // красную и зелёную команду можно было различить и без цветового зрения.
 const TEAMS = [
   { name: "север", letter: "С", color: "#cf3b30", shape: "circle" },
-  { name: "запад", letter: "З", color: "#3b7fe0", shape: "square" },
+  { name: "восток", letter: "В", color: "#3b7fe0", shape: "square" },
   { name: "юг", letter: "Ю", color: "#23945f", shape: "diamond" },
-  { name: "восток", letter: "В", color: "#e3b02a", shape: "hex" },
+  { name: "запад", letter: "З", color: "#e3b02a", shape: "hex" },
 ];
 
 const TEAM_NAMES = TEAMS.map((t) => t.name);

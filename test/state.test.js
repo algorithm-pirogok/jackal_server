@@ -11,7 +11,7 @@ test("4 команды, по 3 пирата, всего 12", () => {
   }
 });
 
-test("игрок A держит противоположные берега N и S, B — W и E", () => {
+test("игрок A держит противоположные берега N и S, B — E и W", () => {
   assert.equal(ownerOfTeam(0), "A");
   assert.equal(ownerOfTeam(2), "A");
   assert.equal(ownerOfTeam(1), "B");
@@ -20,7 +20,7 @@ test("игрок A держит противоположные берега N и
   const g = createGame(1);
   assert.deepEqual(
     g.teams.map((t) => [t.shore, t.owner]),
-    [["N", "A"], ["W", "B"], ["S", "A"], ["E", "B"]],
+    [["N", "A"], ["E", "B"], ["S", "A"], ["W", "B"]],
   );
 });
 
@@ -36,7 +36,7 @@ test("все пираты стартуют на своём корабле без
 
 test("корабли стоят в середине своих берегов", () => {
   const g = createGame(1);
-  assert.deepEqual(g.teams.map((t) => t.ship), [[0, 6], [6, 0], [12, 6], [6, 12]]);
+  assert.deepEqual(g.teams.map((t) => t.ship), [[0, 6], [6, 12], [12, 6], [6, 0]]);
 });
 
 test("партия начинается с команды N, без незакрытых выборов", () => {

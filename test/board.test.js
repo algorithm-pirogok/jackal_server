@@ -38,9 +38,9 @@ test("у каждого берега 9 позиций корабля, старт
   }
 });
 
-test("берега идут в порядке N, W, S, E", () => {
-  assert.deepEqual(SHORES.map((s) => s.shore), ["N", "W", "S", "E"]);
-  assert.deepEqual(SHORES.map((s) => s.start), [[0, 6], [6, 0], [12, 6], [6, 12]]);
+test("берега идут по часовой стрелке: N, E, S, W", () => {
+  assert.deepEqual(SHORES.map((s) => s.shore), ["N", "E", "S", "W"]);
+  assert.deepEqual(SHORES.map((s) => s.start), [[0, 6], [6, 12], [12, 6], [6, 0]]);
 });
 
 test("раскладка детерминирована по сиду и покрывает весь остров", () => {

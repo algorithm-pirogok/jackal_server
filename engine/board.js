@@ -35,15 +35,17 @@ function range(from, to) {
   return out;
 }
 
-// Берега в порядке хода: N, W, S, E. Чередование по чётности даёт чередование
-// людей — команды 0 и 2 у игрока A, команды 1 и 3 у игрока B.
+// Берега в порядке хода: N, E, S, W — обход по часовой стрелке на экране.
+// Чередование по чётности даёт чередование людей: команды 0 и 2 (север и юг)
+// у игрока A, команды 1 и 3 (восток и запад) у игрока B. У каждого человека
+// два берега друг напротив друга.
 // inward — куда смотрит корабль. Пират сходит на одну единственную клетку,
 // ту, что прямо перед носом, а не на три ближайшие.
 export const SHORES = [
   { team: 0, shore: "N", inward: [1, 0], cells: range(2, 10).map((c) => [0, c]) },
-  { team: 1, shore: "W", inward: [0, 1], cells: range(2, 10).map((r) => [r, 0]) },
+  { team: 1, shore: "E", inward: [0, -1], cells: range(2, 10).map((r) => [r, 12]) },
   { team: 2, shore: "S", inward: [-1, 0], cells: range(2, 10).map((c) => [12, c]) },
-  { team: 3, shore: "E", inward: [0, -1], cells: range(2, 10).map((r) => [r, 12]) },
+  { team: 3, shore: "W", inward: [0, 1], cells: range(2, 10).map((r) => [r, 0]) },
 ].map((s) => ({ ...s, start: s.cells[Math.floor(s.cells.length / 2)] }));
 
 // Клетка берега, на которую сходит пират с корабля, стоящего в [r, c].
@@ -59,9 +61,9 @@ export function seaSideTeams(r, c) {
   if (!isSea(r, c)) return [];
   const teams = [];
   if (r <= ISLAND_MIN) teams.push(0); // север
-  if (c <= ISLAND_MIN) teams.push(1); // запад
+  if (c >= ISLAND_MAX) teams.push(1); // восток
   if (r >= ISLAND_MAX) teams.push(2); // юг
-  if (c >= ISLAND_MAX) teams.push(3); // восток
+  if (c <= ISLAND_MIN) teams.push(3); // запад
   return teams;
 }
 
