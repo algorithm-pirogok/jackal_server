@@ -185,8 +185,33 @@ function getSessionId() {
   return id;
 }
 
+function roomPath(code) {
+  return location.pathname + "?room=" + encodeURIComponent(code);
+}
+
+// Хозяин обычно открывает игру на localhost, а такую ссылку второму слать бесполезно.
+// Сервер подсказывает адрес, по которому его видно снаружи: Hamachi или локалка.
+let shareOrigin = "";
+
+function isLocalHostname(name) {
+  return name === "localhost" || name === "127.0.0.1" || name === "[::1]" || name === "::1";
+}
+
+async function loadShareOrigin() {
+  if (!isLocalHostname(String(location.hostname || ""))) return;
+  try {
+    const res = await fetch("/net.json");
+    const net = await res.json();
+    const host = (net.hosts || [])[0];
+    if (host) shareOrigin = location.protocol + "//" + host + ":" + net.port;
+  } catch {
+    // сервер постарше или без --allow-sys — ссылка останется локальной
+  }
+  updateJoinLink();
+}
+
 function inviteLink(code) {
-  return location.origin + location.pathname + "?room=" + encodeURIComponent(code);
+  return (shareOrigin || location.origin) + roomPath(code);
 }
 
 function copyText(text) {
@@ -1187,7 +1212,7 @@ function startGame(code) {
   }
   el.joinError.classList.add("hidden");
   app.reconnectAttempt = 0;
-  history.replaceState(null, "", inviteLink(code));
+  history.replaceState(null, "", roomPath(code));
   connect(code);
 }
 
@@ -1208,7 +1233,7 @@ function leaveGame() {
   app.selection = null;
   app.menu = null;
   app.connStatus = "offline";
-  history.replaceState(null, "", location.origin + location.pathname);
+  history.replaceState(null, "", location.pathname);
   updateJoinLink();
   render();
 }
@@ -1291,6 +1316,7 @@ function bindUi() {
 
 function start() {
   bindUi();
+  loadShareOrigin();
 
   const code = normalizeCode(new URLSearchParams(location.search).get("room") || "");
   if (ROOM_CODE_RE.test(code)) {

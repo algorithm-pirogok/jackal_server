@@ -7,6 +7,8 @@ import { createRoom, joinRoom, handleAction, viewFor } from "./engine/room.js";
 const engine = { createGame, applyAction, redact };
 
 const PORT = Number(Deno.env.get("PORT") ?? 8000);
+// По умолчанию слушаем все интерфейсы: иначе второй игрок по Hamachi или LAN не достучится.
+const HOST = Deno.env.get("HOST") ?? "0.0.0.0";
 const WEB_ROOT = new URL("./web/", import.meta.url);
 const ROOM_CODE = /^[A-Z0-9-]{1,16}$/;
 
@@ -23,6 +25,22 @@ const MIME = {
 // Партии живут в памяти процесса: комнаты по коду и открытые сокеты по коду.
 const rooms = new Map();
 const connections = new Map();
+
+// --- адреса для второго игрока ---
+
+// Хамачи выдаёт адреса 25.x.x.x — их показываем первыми, за ними обычная локалка.
+function shareHosts() {
+  let interfaces;
+  try {
+    interfaces = Deno.networkInterfaces();
+  } catch {
+    return []; // запущено без --allow-sys: подсказки не будет, игра работает
+  }
+  return interfaces
+    .filter((i) => i.family === "IPv4" && i.address !== "127.0.0.1")
+    .map((i) => i.address)
+    .sort((a, b) => Number(b.startsWith("25.")) - Number(a.startsWith("25.")));
+}
 
 // --- статика ---
 
@@ -145,10 +163,26 @@ function openWebSocket(req, code) {
 
 // --- маршрутизация ---
 
-Deno.serve({ port: PORT }, (req) => {
+Deno.serve({
+  hostname: HOST,
+  port: PORT,
+  onListen: ({ port }) => {
+    console.log(`Хозяин партии: http://localhost:${port}/`);
+    for (const host of shareHosts()) {
+      console.log(`Второму игроку (Hamachi или LAN): http://${host}:${port}/`);
+    }
+  },
+}, (req) => {
   const url = new URL(req.url);
 
   if (req.method !== "GET") return new Response("Метод не поддерживается", { status: 405 });
+
+  // Клиент спрашивает, каким адресом делиться, когда сам открыт на localhost.
+  if (url.pathname === "/net.json") {
+    return new Response(JSON.stringify({ port: PORT, hosts: shareHosts() }), {
+      headers: { "content-type": MIME.json },
+    });
+  }
 
   if (url.pathname === "/ws") {
     if (req.headers.get("upgrade")?.toLowerCase() !== "websocket") {
